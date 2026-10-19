@@ -1,0 +1,33 @@
+# Virtual environment — never commit
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Large raw data — use Git LFS or exclude
+# Uncomment below to exclude raw CSV if too large:
+# data/raw/
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+# OS junk
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.idea/
+.vscode/
+*.suo
+*.user
+
+# Temp
+*.tmp
+*.log
+
+# Dataset too large for GitHub (138MB) - download separately
+data/raw/Merged19.csv
+data/raw/*.csv
