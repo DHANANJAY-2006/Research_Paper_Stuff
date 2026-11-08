@@ -1,0 +1,4 @@
+Model,Clean Recall,Adv Recall,Recall Drop,Clean F1,Adv F1,ASR
+RandomForest,99.4,1.0,98.4,93.16,1.74,99.0
+XGBoost,99.4,44.0,55.4,94.04,56.41,56.0
+LightGBM,99.2,31.6,67.6,93.85,43.95,68.4
