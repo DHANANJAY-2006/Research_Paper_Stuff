@@ -1,0 +1,66 @@
+name: Build and Publish Research Paper PDF
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'paper/**'
+      - '.github/workflows/compile-paper.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Compile LaTeX Document
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Compile LaTeX Paper
+        uses: xu-cheng/latex-action@v3
+        with:
+          root_file: main.tex
+          working_directory: paper
+          args: -pdf -file-line-error -interaction=nonstopmode
+
+      - name: Prepare PDF artifact
+        run: |
+          cp paper/main.pdf Adversarial_IDS_Paper.pdf
+
+      - name: Upload PDF Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Adversarial_IDS_Paper
+          path: Adversarial_IDS_Paper.pdf
+
+      - name: Publish to 'latest' Release
+        uses: softprops/action-gh-release@v2
+        if: github.ref == 'refs/heads/master'
+        with:
+          tag_name: latest
+          name: Latest Compiled Research Paper (PDF)
+          body: |
+            ### Automated Research Paper Build
+            This release contains the latest compiled draft of the research paper:
+            **"Adversarial Robustness of Tree-Based Intrusion Detection Systems Under Feature-Constrained Evasion Attacks"**
+
+            - **Direct Download:** [Adversarial_IDS_Paper.pdf](https://github.com/${{ github.repository }}/releases/download/latest/Adversarial_IDS_Paper.pdf)
+            - **View in GitHub Viewer:** [View on GitHub](https://github.com/${{ github.repository }}/blob/pdf-preview/Adversarial_IDS_Paper.pdf)
+          files: Adversarial_IDS_Paper.pdf
+
+      - name: Deploy PDF to 'pdf-preview' branch for in-browser viewing
+        if: github.ref == 'refs/heads/master'
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout --orphan pdf-preview
+          git rm -rf .
+          mv Adversarial_IDS_Paper.pdf .
+          git add Adversarial_IDS_Paper.pdf
+          git commit -m "Auto-update compiled PDF [skip ci]"
+          git push -f origin pdf-preview
