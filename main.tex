@@ -1,0 +1,593 @@
+%% Elsevier elsarticle Template
+%% Journal: Computers & Security (COSE)
+%% Title: Adversarial Robustness of Tree-Based Intrusion Detection Systems
+%%        Under Feature-Constrained Evasion Attacks
+
+\documentclass[review,12pt]{elsarticle}
+
+\usepackage{lineno,hyperref}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{xcolor}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{tabularx}
+
+\modulolinenumbers[5]
+
+\journal{Computers \& Security}
+
+\bibliographystyle{elsarticle-num}
+
+\begin{document}
+
+\begin{frontmatter}
+
+\title{Adversarial Robustness of Tree-Based Intrusion Detection Systems Under Feature-Constrained Evasion Attacks}
+
+\author[a]{Dhananjay Kadge\corref{cor1}}
+\ead{dhananjay.kadge@mgmu.ac.in}
+\cortext[cor1]{Corresponding author}
+
+\address[a]{School of Engineering Technology, MGM University, Chhatrapati Sambhajinagar, Maharashtra, India}
+
+\begin{abstract}
+Machine learning-based Intrusion Detection Systems (IDS) have achieved near-perfect accuracy on benchmark datasets, yet their security under adversarial manipulation remains critically under-explored. This paper presents a comprehensive adversarial robustness evaluation of three tree-based classifiers --- Random Forest (RF), XGBoost, and LightGBM --- deployed on the CIC-IoT2023 dataset comprising 701,978 network traffic records across 31 attack categories. We propose a feature-constrained, multi-objective Genetic Algorithm (GA) that restricts perturbations exclusively to network-layer continuous features, ensuring all generated adversarial examples remain semantically valid and network-replayable. Our evaluation framework spans four experimental phases: (1) baseline model characterisation, (2) adversarial evasion under varying perturbation budgets (\(\varepsilon \in [0.1, 6.0]\)), (3) cross-architecture comparison against a Multi-Layer Perceptron (MLP), and (4) adversarial training as a mitigation strategy augmented with Gaussian Subspace Smoothing. Key findings include: XGBoost achieves an Attack Success Rate (ASR) of 41.67\% under direct white-box attack, while MLP is completely compromised (ASR = 100\%); adversarial training reduces XGBoost ASR from 41.67\% to 1.33\% with zero penalty to clean detection recall (99.33\%); a phase transition in evasion effectiveness is observed at \(\varepsilon \approx 4.69\); and RF exhibits a security paradox --- robust to black-box transfer attacks (2\% ASR) yet fully vulnerable under white-box targeting (99\% ASR). These results provide quantitative evidence that tree-based IDS architectures, particularly adversarially trained XGBoost, offer superior security-utility tradeoffs compared to deep learning alternatives in network intrusion detection contexts.
+\end{abstract}
+
+\begin{keyword}
+Adversarial Machine Learning \sep Intrusion Detection System \sep Genetic Algorithm \sep XGBoost \sep Adversarial Training \sep Network Security \sep Feature-Constrained Attack \sep Evasion Attack \sep IoT Security \sep Gaussian Subspace Smoothing
+\end{keyword}
+
+\end{frontmatter}
+
+\linenumbers
+
+% ─────────────────────────────────────────────────────────────
+\section{Introduction}
+\label{sec:intro}
+% ─────────────────────────────────────────────────────────────
+
+Network Intrusion Detection Systems (IDS) represent the last line of defence against sophisticated cyber attacks. The adoption of machine learning (ML), particularly tree-based ensemble methods such as Random Forest~\cite{breiman2001random}, XGBoost~\cite{chen2016xgboost}, and LightGBM~\cite{ke2017lightgbm}, has elevated IDS accuracy to levels exceeding 99\% on standard benchmarks~\cite{ring2019survey}. However, such reported performance figures mask a critical assumption: that adversarial actors will submit network traffic in the same statistical distribution as the training data.
+
+Adversarial examples~\cite{goodfellow2014explaining} are carefully crafted inputs designed to cause misclassification while remaining imperceptibly close to valid inputs. While this phenomenon is extensively studied in image classification, its application to network-based IDS presents unique challenges: unlike pixel perturbations, modifications to packet features must preserve \emph{semantic validity} --- a modified TCP flag count, for instance, cannot produce values that are physically impossible given network protocol constraints.
+
+The rapid expansion of Internet of Things (IoT) deployments has introduced new attack surfaces and dramatically increased the complexity of network traffic that IDS must monitor~\cite{hassanin2023iot}. IoT-specific datasets such as CIC-IoT2023 provide more realistic evaluation environments than earlier benchmarks, capturing traffic from real IoT devices under controlled attack conditions.
+
+This work addresses three open research questions:
+\begin{enumerate}
+    \item \textbf{RQ1:} How vulnerable are state-of-the-art tree-based IDS classifiers to feature-constrained adversarial evasion attacks?
+    \item \textbf{RQ2:} Do architectural differences (tree-based vs.\ neural) create measurable differences in adversarial robustness?
+    \item \textbf{RQ3:} Can adversarial training, augmented with Gaussian Subspace Smoothing, restore robustness without sacrificing detection recall on clean traffic?
+\end{enumerate}
+
+Our \textbf{contributions} are as follows:
+\begin{itemize}
+    \item A feature-constrained multi-objective Genetic Algorithm that generates semantically valid adversarial network traffic by restricting mutations to continuous, non-categorical features identified via SHAP importance analysis.
+    \item A systematic quantification of the phase transition in adversarial evasion effectiveness, identifying a critical perturbation threshold (\(\varepsilon \approx 4.69\)) at which XGBoost ASR jumps from 2.4\% to 63.2\%.
+    \item The first empirical characterisation of the \textit{RF security paradox}: RF resists XGBoost-crafted black-box transfer attacks (2\% ASR) while collapsing entirely under direct white-box targeting (99\% ASR).
+    \item A novel adversarial training pipeline incorporating Gaussian Subspace Smoothing to prevent example memorisation, achieving near-complete robustness (1.33\% ASR) with zero clean accuracy degradation.
+    \item A comprehensive cross-architecture comparative analysis across 31 attack categories, revealing that application-layer attack classes (e.g., XSS, Command Injection, Dictionary Brute Force) retain high evadability even after adversarial training.
+\end{itemize}
+
+The remainder of this paper is structured as follows: Section~\ref{sec:related} reviews related work; Section~\ref{sec:methodology} details the dataset, models, threat model, and attack framework; Sections~\ref{sec:phase1}--\ref{sec:phase4} present the four experimental phases; Section~\ref{sec:phase5} provides advanced analysis and interpretability; Section~\ref{sec:discussion} synthesises findings; and Section~\ref{sec:conclusion} concludes.
+
+% ─────────────────────────────────────────────────────────────
+\section{Related Work}
+\label{sec:related}
+% ─────────────────────────────────────────────────────────────
+
+\subsection{Adversarial Machine Learning}
+The study of adversarial examples was formalised by Goodfellow et al.~\cite{goodfellow2014explaining}, who demonstrated that adding imperceptible $\ell_\infty$-bounded noise to images suffices to fool state-of-the-art classifiers. Madry et al.~\cite{madry2018towards} extended this to a min-max formulation, proposing Projected Gradient Descent (PGD) as a principled attack. Carlini and Wagner~\cite{carlini2017evaluating} introduced the C\&W attack and established evaluation best practices for adversarial defences. Tramer et al.~\cite{tramer2020adaptive} subsequently showed that many proposed defences fail against adaptive attackers, establishing the need for principled evaluation under adaptive threat models --- a concern we address in Phase 4 of this work.
+
+\subsection{Adversarial Attacks on Network Intrusion Detection Systems}
+Corona et al.~\cite{corona2013adversarial} provided an early taxonomy of adversarial attacks against IDS, identifying the fundamental challenge of feature-space vs.\ problem-space constraints. Apruzzese et al.~\cite{apruzzese2022modeling} modelled realistic adversarial attacks against network-based IDS, demonstrating that perturbations must respect protocol semantics. Sheatsley et al.~\cite{sheatsley2022space} evaluated adversarial examples in the IDS problem space, showing that gradient-based methods struggle with the discrete nature of network features --- a limitation our GA-based approach is specifically designed to overcome. Zhang and Wang~\cite{zhang2022adversarial} applied adversarial examples to tree-based IDS, but restricted their evaluation to a single model class and dataset; our work extends this across three tree classifiers, an MLP, and 31 attack categories. Sommer and Paxson~\cite{sommer2010outside} raised fundamental concerns about the applicability of machine learning to network intrusion detection, cautioning against over-reliance on accuracy metrics without adversarial evaluation.
+
+\subsection{IoT Network Intrusion Detection}
+The proliferation of IoT devices has motivated dedicated IDS research using IoT-specific datasets. The CIC-IoT2023 dataset~\cite{neto2023ciciot2023} represents one of the most comprehensive publicly available IoT traffic benchmarks, capturing 33 attack types from 105 IoT devices. Recent work has applied deep learning architectures to IoT IDS~\cite{hassanin2023iot}, achieving high accuracy on clean benchmarks but typically without adversarial evaluation. Our work addresses this gap by providing the first adversarial robustness evaluation on CIC-IoT2023.
+
+\subsection{Genetic Algorithms in Adversarial Machine Learning}
+Genetic algorithms have been applied to adversarial example generation as an alternative to gradient-based methods, particularly for black-box settings and discrete input spaces where gradients are unavailable. Deb et al.'s NSGA-II~\cite{deb2002nsga} established the foundational framework for multi-objective evolutionary optimisation. Prior work has used GA-based attacks against image classifiers and malware detectors; our approach adapts this framework to the network traffic domain with feature-space constraints derived from protocol semantics, and extends the fitness function to jointly minimise evasion probability and perturbation magnitude.
+
+\subsection{Transferability of Adversarial Examples}
+Papernot et al.~\cite{papernot2016transferability} established the transferability property: adversarial examples crafted for one model often fool other models trained on the same data. This has profound implications for black-box attack scenarios in IDS deployments, where the attacker may not know the defender's model architecture. Our cross-model transferability analysis (Phase 2, Experiment 1) reveals that this property varies significantly across tree architectures, with RF showing surprising black-box robustness despite catastrophic white-box vulnerability.
+
+\subsection{Adversarial Training and Smoothing-Based Defences}
+Adversarial training, introduced by Goodfellow et al.~\cite{goodfellow2014explaining} and formalised by Madry et al.~\cite{madry2018towards}, augments the training set with adversarial examples during model training. Cohen et al.~\cite{cohen2019certified} introduced randomised smoothing as a certified defence against $\ell_2$-bounded perturbations. Our Gaussian Subspace Smoothing (GSS) is conceptually related to randomised smoothing but differs fundamentally: GSS is applied during \emph{training} as a data augmentation technique targeting only the mutable feature subspace, rather than at inference time as a prediction wrapper. This distinction allows GSS to shift the model's decision boundary without incurring inference-time computational overhead, and without the accuracy penalty associated with full-space smoothing. Chawla et al.'s SMOTE~\cite{chawla2002smote} provides a related precedent for synthetic over-sampling, though applied to class-imbalance rather than adversarial robustness.
+
+\noindent\textbf{Summary and research gap.} Existing work on adversarial IDS has focused primarily on gradient-based attacks against neural networks, single-model evaluations, or image-domain analogies. No prior work has: (1) evaluated all three major tree architectures under a semantically constrained GA attack on CIC-IoT2023; (2) characterised the phase transition in tree-model adversarial vulnerability; or (3) proposed Gaussian Subspace Smoothing for adversarial training of tree ensembles. This work directly fills these gaps.
+
+% ─────────────────────────────────────────────────────────────
+\section{Methodology}
+\label{sec:methodology}
+% ─────────────────────────────────────────────────────────────
+
+Figure~\ref{fig:overview} presents an overview of the complete four-phase experimental pipeline.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.95\textwidth]{figures/fig07_master_overview.png}
+  \caption{Master experimental overview. The pipeline proceeds through four phases: (1) baseline model training and SHAP analysis, (2) multi-objective GA adversarial attack evaluation, (3) cross-architecture comparison against MLP, and (4) adversarial training defence with Gaussian Subspace Smoothing.}
+  \label{fig:overview}
+\end{figure}
+
+\subsection{Dataset}
+We employ the CIC-IoT2023 dataset~\cite{neto2023ciciot2023}, a comprehensive IoT network traffic dataset containing 701,978 labelled flows across 40 statistical features and 31 attack categories generated from 105 IoT devices. Table~\ref{tab:dataset} summarises the dataset statistics after preprocessing. The binary label distribution is severely imbalanced, with 97.67\% of flows classified as attack traffic --- a realistic reflection of controlled honeypot environments.
+
+Data preprocessing includes: (1) removal of non-finite values (NaN, $\pm\infty$); (2) StandardScaler normalisation of all continuous features; (3) an 80/20 stratified train/test split preserving the class distribution; and (4) serialisation of processed data as Apache Parquet files for reproducibility.
+
+\begin{table}[htbp]
+\centering
+\caption{CIC-IoT2023 Dataset Statistics After Preprocessing}
+\label{tab:dataset}
+\begin{tabular}{lrr}
+\toprule
+\textbf{Metric} & \textbf{Train Set} & \textbf{Test Set} \\
+\midrule
+Total Samples     & 561,569 & 140,393 \\
+Benign Traffic    & 13,073  & 3,268   \\
+Attack Traffic    & 548,496 & 137,125 \\
+Features          & 39      & 39      \\
+Attack Categories & 31      & 31      \\
+Class Imbalance   & 41.96:1 & 41.97:1 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Baseline Models}
+
+Three state-of-the-art tree-based classifiers are trained as baseline IDS models:
+
+\textbf{Random Forest (RF)}~\cite{breiman2001random}: An ensemble of 100 decision trees with Gini impurity criterion and maximum depth 15, trained using 16-core parallel execution.
+
+\textbf{XGBoost}~\cite{chen2016xgboost}: A gradient-boosted tree ensemble with 400 estimators, maximum depth 8, learning rate 0.05, and subsampling ratio 0.8. XGBoost is selected as the primary attack target due to its dominant single-feature importance (the \texttt{Number} feature captures 92.25\% of model variance, as revealed by SHAP analysis).
+
+\textbf{LightGBM}~\cite{ke2017lightgbm}: A histogram-based gradient boosting framework offering comparable accuracy to XGBoost at a fraction of the training time (1.99s vs.\ 3.41s).
+
+A Multi-Layer Perceptron (MLP) with architecture $512 \rightarrow 256 \rightarrow 128 \rightarrow 64$ (ReLU activations, Adam optimiser, $\alpha=10^{-3}$ L2 regularisation, early stopping) is additionally trained for cross-architecture comparison in Phase 3 (Section~\ref{sec:phase3}).
+
+\subsection{Threat Model}
+\label{sec:threat}
+
+We adopt the threat model framework of Papernot et al.~\cite{papernot2016transferability}. The adversary's \textbf{goal} is to cause attack traffic to be misclassified as benign by the deployed IDS, thereby evading detection without modifying the actual attack payload at the application layer.
+
+We consider a \textbf{white-box} threat model in which the adversary has full knowledge of: (1) the model architecture and trained parameters; (2) the complete feature extraction pipeline and preprocessing steps; and (3) the classification threshold. This represents a worst-case evaluation scenario --- results under white-box conditions establish an upper bound on adversarial vulnerability.
+
+The adversary's \textbf{capability} is restricted to modifying continuous network-layer features within a bounded L-infinity perturbation budget $\varepsilon$. Formally, the adversary operates within the constraint set:
+\[
+  \mathcal{A} = \left\{\boldsymbol{\delta} \;\middle|\; \delta_i = 0 \; \forall i \notin \mathcal{F}_\text{mut}, \quad |\delta_i| \leq \varepsilon \; \forall i \in \mathcal{F}_\text{mut}\right\}
+\]
+where $\mathcal{F}_\text{mut}$ is the mutable feature set (defined in Section~\ref{sec:features}). The adversary cannot modify categorical features (protocol flags, port numbers, TCP control bits) as these are enforced by network protocol constraints and their modification would break network connectivity. This is consistent with the problem-space attack model of~\cite{apruzzese2022modeling}.
+
+\subsection{Feature Importance Analysis and Attack Feature Selection}
+\label{sec:features}
+
+SHAP (SHapley Additive exPlanations)~\cite{lundberg2017shap} values are computed on a 1,000-sample background dataset to rank feature importance for the XGBoost model (Figure~\ref{fig:shap}). Mutable features are restricted to continuous features with more than 15 unique values in the test set, excluding binary protocol flags and categorical encodings. The top 15 features by SHAP importance are designated as the mutable feature set $\mathcal{F}_\text{mut}$. The 7 primary mutable features are: \textit{Duration}, \textit{Tot size of bckwd packet}, \textit{Tot size of fwd packet}, \textit{Fwd Packet Length Max}, \textit{Bckwd Packet Length Max}, \textit{Flow IAT Mean}, and \textit{Bckwd IAT Mean}.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.92\textwidth]{figures/shap_beeswarm_publication.png}
+  \caption{SHAP beeswarm plot for the XGBoost baseline model. The \texttt{Number} feature (packet count per flow) dominates with 92.25\% of total feature importance, indicating that adversarial perturbations targeting this single feature will be disproportionately effective. Features are sorted by mean absolute SHAP value.}
+  \label{fig:shap}
+\end{figure}
+
+\subsection{Multi-Objective Genetic Algorithm Attack}
+\label{sec:ga}
+
+We formulate adversarial example generation as a multi-objective optimisation problem. For each attack sample $\mathbf{x} \in \mathbb{R}^d$, we seek an adversarial perturbation $\boldsymbol{\delta}$ such that:
+
+\begin{equation}
+\min_{\boldsymbol{\delta}} \quad f(\mathbf{x} + \boldsymbol{\delta}) = \alpha \cdot p_\theta(\mathbf{x} + \boldsymbol{\delta}) + (1-\alpha) \cdot \|\boldsymbol{\delta}_{\mathcal{F}_\text{mut}}\|_2
+\label{eq:objective}
+\end{equation}
+
+\noindent subject to:
+\begin{align}
+\delta_i &= 0, \quad \forall i \notin \mathcal{F}_\text{mut} \label{eq:c1} \\
+|\delta_i| &\leq \varepsilon, \quad \forall i \in \mathcal{F}_\text{mut} \label{eq:c2}
+\end{align}
+
+where $p_\theta(\cdot)$ denotes the model's predicted probability of the attack class, $\varepsilon$ is the perturbation budget (L-infinity bound), and $\alpha = 0.95$ is a hyperparameter balancing evasion effectiveness against perturbation minimality. Constraint~(\ref{eq:c1}) enforces feature-space validity by restricting mutations to $\mathcal{F}_\text{mut}$, and Constraint~(\ref{eq:c2}) bounds the total perturbation magnitude. This formulation is preferable to gradient-based attacks (FGSM~\cite{goodfellow2014explaining}, PGD~\cite{madry2018towards}) for tree-based models because tree ensembles are piecewise-constant and non-differentiable: no analytic gradient exists to guide perturbation direction.
+
+The GA operates with a population of 300 individuals, 100 generations, elitist selection (top 50\% survivors), uniform crossover, and Gaussian mutation with standard deviation $\varepsilon/3$. Each evaluation runs in parallel across all available CPU cores via the \texttt{joblib} library. Table~\ref{tab:ga_params} summarises all hyperparameters. The complete pseudocode is provided in Algorithm~\ref{alg:ga}.
+
+\begin{table}[htbp]
+\centering
+\caption{Multi-Objective GA Hyperparameters}
+\label{tab:ga_params}
+\begin{tabular}{lll}
+\toprule
+\textbf{Parameter} & \textbf{Value} & \textbf{Rationale} \\
+\midrule
+Population size     & 300           & Sufficient diversity for 39-dim search space \\
+Generations         & 100           & Empirically determined convergence point \\
+Perturbation budget $\varepsilon$ & 5.0 & Covers phase transition region \\
+Fitness weight $\alpha$ & 0.95      & Prioritises evasion over stealth \\
+Stealth weight $(1-\alpha)$ & 0.05  & L2 distance tie-breaker \\
+Survival rate       & 50\%          & Tournament-free elitist selection \\
+Mutation std        & $\varepsilon/3$ & Scaled to perturbation budget \\
+Crossover           & Uniform (50\%) & Each gene from random parent \\
+Parallelism         & All CPU cores & \texttt{joblib} Parallel backend \\
+Attack samples ($n$) & 500         & Per-model experiment slice \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{algorithm}[htbp]
+\caption{Multi-Objective Feature-Constrained GA}
+\label{alg:ga}
+\begin{algorithmic}[1]
+\State \textbf{Input:} Attack sample $\mathbf{x}$, model $\theta$, mutable indices $\mathcal{F}_\text{mut}$, budget $\varepsilon$
+\State \textbf{Output:} Adversarial example $\mathbf{x}^*$ or $\mathbf{x}$ if no evasion found
+\State Initialise population $\mathcal{P} = \{\boldsymbol{\delta}^{(p)}\}_{p=1}^{300}$ with $\boldsymbol{\delta}^{(p)}_i \sim \mathcal{U}(-\varepsilon, \varepsilon)$ for $i \in \mathcal{F}_\text{mut}$, else $0$
+\For{$g = 1$ to $100$}
+    \State Evaluate fitness: $f^{(p)} = p_\theta(\mathbf{x} + \boldsymbol{\delta}^{(p)}) + 0.05 \cdot \|\boldsymbol{\delta}^{(p)}_{\mathcal{F}_\text{mut}}\|_2$
+    \If{$\exists\, p: p_\theta(\mathbf{x} + \boldsymbol{\delta}^{(p)}) < 0.5$}
+        \State \Return $\mathbf{x}^* = \mathbf{x} + \arg\min_{p:\, p_\theta < 0.5} \|\boldsymbol{\delta}^{(p)}\|_2$ \quad \textit{(stealthiest evasion)}
+    \EndIf
+    \State Select top-50\% survivors by fitness; generate offspring via crossover and Gaussian mutation
+\EndFor
+\State \Return $\mathbf{x}$ \quad (evasion failed)
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Adversarial Training with Gaussian Subspace Smoothing}
+
+Standard adversarial training augments the training set $\mathcal{D}$ with adversarial examples $\mathcal{D}_\text{adv}$:
+\[
+\mathcal{D}_\text{aug} = \mathcal{D} \cup \mathcal{D}_\text{adv}
+\]
+
+However, when $|\mathcal{D}_\text{adv}| \ll |\mathcal{D}|$, up-sampling $\mathcal{D}_\text{adv}$ to achieve a meaningful augmentation ratio causes tree models to memorise the exact adversarial points rather than learning robust decision boundaries~\cite{madry2018towards}. We address this with \textbf{Gaussian Subspace Smoothing (GSS)}: each up-sampled copy of an adversarial example $\mathbf{x}^*$ receives independent Gaussian noise $\boldsymbol{\eta} \sim \mathcal{N}(0, (\varepsilon/6)^2)$ on the mutable feature subspace:
+\[
+\tilde{\mathbf{x}}^* = \mathbf{x}^* + \boldsymbol{\eta}_{\mathcal{F}_\text{mut}}
+\]
+This transforms a finite set of adversarial points into a continuous \emph{robustness cloud} in the mutable feature subspace, encouraging the model to learn robust feature representations rather than point-specific classifiers. GSS differs from inference-time randomised smoothing~\cite{cohen2019certified} in that it operates during training and targets only the constrained mutable subspace, avoiding accuracy degradation on clean samples.
+
+Multi-scale adversarial training data is generated at $\varepsilon \in \{1.0, 2.0, 3.0, 5.0\}$ to ensure robustness generalises across the full perturbation budget range.
+
+% ─────────────────────────────────────────────────────────────
+\section{Phase 1: Baseline Model Performance}
+\label{sec:phase1}
+% ─────────────────────────────────────────────────────────────
+
+Table~\ref{tab:baseline} reports classification performance on the held-out test set ($n = 140,393$). All three tree-based classifiers achieve near-identical performance, confirming their suitability as IDS baselines.
+
+\begin{table}[htbp]
+\centering
+\caption{Baseline IDS Performance on CIC-IoT2023 Test Set ($n=140,393$)}
+\label{tab:baseline}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Model} & \textbf{Accuracy} & \textbf{Weighted F1} & \textbf{Precision} & \textbf{Train Time (s)} \\
+\midrule
+Random Forest & 0.9922 & 0.9960 & 0.9961 & 10.18 \\
+XGBoost       & 0.9925 & 0.9962 & 0.9963 & 3.41  \\
+LightGBM      & 0.9924 & 0.9961 & 0.9962 & 1.99  \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+XGBoost achieves the highest weighted F1-score (0.9962) while training in 3.41 seconds --- less than one-third the time of Random Forest. LightGBM provides the fastest training (1.99s) with marginal performance difference, confirming its value in resource-constrained deployments. Figure~\ref{fig:baseline} presents a visual comparison including ROC curves for all three models.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.95\textwidth]{figures/fig01_baseline_performance.png}
+  \caption{Phase 1 baseline IDS model performance comparison. Left: Accuracy, Precision, Recall and F1-Score bar chart. Right: ROC curves. All three tree-based classifiers achieve AUC $> 0.999$, confirming near-perfect clean detection capability.}
+  \label{fig:baseline}
+\end{figure}
+
+SHAP analysis (Figure~\ref{fig:shap}) reveals extreme feature dominance: the \texttt{Number} feature (packet count per flow) accounts for 92.25\% of XGBoost's total feature importance. This single-feature dominance has profound implications for adversarial vulnerability --- attacks targeting \texttt{Number} alone are disproportionately effective, as demonstrated in Phase 2.
+
+% ─────────────────────────────────────────────────────────────
+\section{Phase 2: Adversarial Evasion Evaluation}
+\label{sec:phase2}
+% ─────────────────────────────────────────────────────────────
+
+\subsection{Main Evasion Results}
+
+The GA (Section~\ref{sec:ga}) is applied to 500 correctly classified attack samples from the test set using the parameters defined in Table~\ref{tab:ga_params} with $\varepsilon = 5.0$. Table~\ref{tab:evasion} reports the Attack Success Rate (ASR) and recall drop for each model. Figure~\ref{fig:recall_drop} presents a visual summary across all metrics.
+
+\begin{table}[htbp]
+\centering
+\caption{Adversarial Evasion Results ($\varepsilon = 5.0$, $n = 500$ packets per model)}
+\label{tab:evasion}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Model} & \textbf{Clean Recall} & \textbf{Adv.\ Recall} & \textbf{Recall Drop} & \textbf{ASR} \\
+\midrule
+Random Forest & 99.40\% & 1.00\%  & 98.40\% & 99.00\% \\
+XGBoost       & 99.40\% & 44.00\% & 55.40\% & 56.00\% \\
+LightGBM      & 99.20\% & 31.60\% & 67.60\% & 68.40\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.95\textwidth]{figures/fig06_recall_f1_asr_drop.png}
+  \caption{Phase 2 adversarial attack results across all three tree models ($\varepsilon = 5.0$, $n=500$). Clean recall remains near-perfect for all models, while adversarial recall collapses --- most severely for Random Forest (99\% ASR) despite its high clean performance.}
+  \label{fig:recall_drop}
+\end{figure}
+
+\subsection{Perturbation Phase Transition}
+
+An epsilon sensitivity ablation study over $\varepsilon \in [0.1, 6.0]$ (Figure~\ref{fig:epsilon}) reveals a phase transition in adversarial effectiveness: XGBoost ASR remains below 2.5\% for $\varepsilon < 4.69$, then abruptly transitions to 63.2\% at $\varepsilon = 4.69$. This sharp transition is characteristic of XGBoost's axis-aligned decision boundary structure, where a critical feature split threshold is crossed only when perturbation magnitude exceeds the distance to the nearest split boundary in the mutable feature subspace.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.80\textwidth]{figures/fig03_epsilon_sensitivity.png}
+  \caption{Epsilon sensitivity ablation: ASR vs.\ perturbation budget $\varepsilon$ for XGBoost. A sharp phase transition occurs at $\varepsilon \approx 4.69$, where ASR jumps from 2.4\% to 63.2\%. This threshold corresponds to the minimum perturbation required to cross the dominant feature split boundary.}
+  \label{fig:epsilon}
+\end{figure}
+
+\subsection{Cross-Model Transferability}
+
+Adversarial examples crafted using XGBoost as a surrogate model are tested against all three classifiers (Figure~\ref{fig:transferability}). Random Forest exhibits strong black-box robustness: XGBoost-crafted examples transfer with only 2\% ASR against RF. However, as established in direct white-box experiments, when RF is attacked using its own feature importances, it collapses to 99\% ASR --- revealing a critical security paradox.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.85\textwidth]{figures/fig02_transferability.png}
+  \caption{Cross-model adversarial transferability. Adversarial examples generated against XGBoost (surrogate) are tested on all three models. Random Forest shows the strongest black-box robustness (only 2\% transfer ASR), while LightGBM shows highest susceptibility to cross-model transfer.}
+  \label{fig:transferability}
+\end{figure}
+
+\textbf{Finding 1 (RF Security Paradox):} \textit{Random Forest demonstrates architectural robustness against black-box transfer attacks (2\% ASR) but extreme vulnerability under white-box direct targeting (99\% ASR). This is attributable to RF's ensemble averaging, which washes out cross-model gradient information, combined with the high sensitivity of individual tree boundaries to direct feature-importance-guided perturbations.}
+
+\subsection{Per-Class Vulnerability Analysis}
+
+Figure~\ref{fig:perclass} presents per-attack-class ASR across all 31 attack categories. Application-layer and reconnaissance attack classes (SQLINJECTION, COMMANDINJECTION, RECON-PORTSCAN, MITM-ARPSPOOFING) achieve near-100\% ASR, indicating complete evasion. Network flood attacks (DDOS-RSTFINFLOOD) show the highest inherent robustness, with only 8\% ASR under the same perturbation budget. This disparity reflects the degree to which each attack class's distinguishing features overlap with mutable continuous features.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.95\textwidth]{figures/fig04_per_class_vulnerability.png}
+  \caption{Per-attack-class evasion vulnerability under white-box GA attack ($\varepsilon=5.0$, $n \leq 100$ per class). Attack classes are sorted by descending ASR. Application-layer attacks show near-complete evasion, while volumetric flood attacks retain the highest inherent robustness.}
+  \label{fig:perclass}
+\end{figure}
+
+\subsection{GA vs.\ Random Noise Baseline}
+
+Figure~\ref{fig:gavsrandom} compares the multi-objective GA against a random noise baseline (50 uniformly random perturbation attempts per packet). Across all $\varepsilon$ values tested, the GA achieves significantly higher ASR, confirming that the evolutionary guided search adds substantial adversarial effectiveness beyond random feature perturbation.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.80\textwidth]{figures/fig05_ga_vs_random_baseline.png}
+  \caption{Multi-objective GA vs.\ random noise baseline comparison. The GA consistently achieves 2--4$\times$ higher ASR than random perturbation, confirming that evolutionary guided search is essential for effective adversarial evasion of tree-based IDS.}
+  \label{fig:gavsrandom}
+\end{figure}
+
+% ─────────────────────────────────────────────────────────────
+\section{Phase 3: Cross-Architecture Robustness Evaluation}
+\label{sec:phase3}
+% ─────────────────────────────────────────────────────────────
+
+To investigate architectural factors in adversarial vulnerability, we train an MLP baseline and subject it to the identical GA attack. Figure~\ref{fig:mlptrain} shows the MLP training convergence curve.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.80\textwidth]{figures/fig08_mlp_training_curve.png}
+  \caption{MLP training convergence curve. The model converges after approximately 150 epochs with early stopping triggered at the optimal validation loss minimum. Final clean accuracy: 99.02\%.}
+  \label{fig:mlptrain}
+\end{figure}
+
+Table~\ref{tab:crossarch} presents the comparative results across the XGBoost (tree-based) and MLP (neural) architectures.
+
+\begin{table}[htbp]
+\centering
+\caption{Cross-Architecture Adversarial Robustness ($\varepsilon = 5.0$, $n = 500$)}
+\label{tab:crossarch}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Architecture} & \textbf{Clean Acc.} & \textbf{ROC-AUC} & \textbf{ASR} & \textbf{Recall Drop} \\
+\midrule
+XGBoost (Tree) & 99.25\% & 0.9981 & 57.00\% & 56.40\% \\
+MLP (Neural)   & 99.02\% & 0.9969 & 100.00\% & 99.00\% \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Figures~\ref{fig:crossbaseline} and~\ref{fig:crossattack} present clean baseline comparisons and attack comparison results respectively.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.95\textwidth]{figures/fig09_cross_arch_baseline.png}
+  \caption{Phase 3 clean baseline comparison: XGBoost vs.\ MLP. Left: accuracy and F1-score; Right: ROC curves. Both architectures achieve near-identical clean detection performance (accuracy difference $< 0.3\%$), confirming that the architecture has negligible impact on clean detection but — as shown in Table~\ref{tab:crossarch} — a dramatic impact under adversarial conditions.}
+  \label{fig:crossbaseline}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.95\textwidth]{figures/fig10_cross_arch_attack_comparison.png}
+  \caption{Phase 3 attack comparison: XGBoost (tree) vs.\ MLP (neural) under identical GA attack ($\varepsilon=5.0$). MLP achieves 100\% ASR (complete evasion), while XGBoost retains a 43\% detection rate. The right panel shows post-attack confidence distributions, confirming that the GA successfully drives MLP confidence below the evasion threshold (0.5) for all attack samples.}
+  \label{fig:crossattack}
+\end{figure}
+
+The MLP achieves 100\% ASR under direct GA attack --- complete evasion of all 500 attack packets. This result is consistent with two architectural properties: (1) MLP's smooth, continuous decision surface provides no axis-aligned resistance to gradient-guided perturbations; (2) MLP's internal probability outputs are miscalibrated under the class-imbalanced training distribution (Youden's J optimal threshold = 0.9722), creating a wide gap between the nominal classification boundary (0.5) and the model's typical attack output ($\approx 0.97$), providing an extensive subspace for GA-guided perturbations to exploit.
+
+\textbf{Finding 2 (Architectural Brittleness):} \textit{Smooth neural decision surfaces (MLP) are categorically more vulnerable to targeted feature-constrained GA attacks than axis-aligned tree boundaries (XGBoost), producing 1.75$\times$ higher ASR (100\% vs.\ 57\%) under identical attack parameters.}
+
+The epsilon sensitivity comparison (Figure~\ref{fig:crossepsilon}) and confidence degradation curves (Figure~\ref{fig:confdeg}) further quantify the differential robustness across perturbation budgets.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.85\textwidth]{figures/fig11_cross_arch_epsilon_sensitivity.png}
+  \caption{Epsilon sensitivity: XGBoost vs.\ MLP. MLP ASR rises steeply at low $\varepsilon$ while XGBoost shows the characteristic phase transition behaviour. Shaded regions indicate the vulnerability surplus of each architecture.}
+  \label{fig:crossepsilon}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.85\textwidth]{figures/fig12_confidence_degradation.png}
+  \caption{Confidence degradation curves (mean $\pm$ 1 std.\ dev., $n=150$ packets). MLP confidence drops below the evasion threshold (0.5, dashed line) at $\varepsilon \approx 2.5$, while XGBoost maintains confidence above threshold until $\varepsilon \approx 4.69$.}
+  \label{fig:confdeg}
+\end{figure}
+
+% ─────────────────────────────────────────────────────────────
+\section{Phase 4: Adversarial Training Defense}
+\label{sec:phase4}
+% ─────────────────────────────────────────────────────────────
+
+\subsection{Augmentation Rate Ablation}
+
+Seven augmentation rates $r \in \{0\%, 5\%, 10\%, 20\%, 30\%, 40\%, 50\%\}$ are evaluated by retraining XGBoost on the augmented dataset $\mathcal{D}_\text{aug}$ and measuring both clean accuracy and Seen-ASR (the fraction of training-time adversarial examples that still evade the retrained model). Clean accuracy remains stable across all rates (99.26\%--99.30\%), confirming that adversarial augmentation does not degrade normal detection. A 20\% augmentation rate is selected as the optimal tradeoff point.
+
+\subsection{Defense Effectiveness}
+
+Table~\ref{tab:defense} reports the final defense evaluation against \emph{unseen} adversarial examples generated by fresh GA runs targeting each model independently. Figures~\ref{fig:defensecore},~\ref{fig:tradeoff}, and~\ref{fig:radar} present the core defense comparison, security-utility tradeoff, and overall defense radar profile respectively.
+
+\begin{table}[htbp]
+\centering
+\caption{Phase 4 Defense Summary: Clean vs.\ Adversarially Trained Models}
+\label{tab:defense}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Model} & \textbf{Clean Recall} & \textbf{Adv.\ Recall} & \textbf{Recall Drop} & \textbf{ASR} \\
+\midrule
+XGBoost        & 99.33\% & 58.33\%  & 41.00\% & 41.67\% \\
+XGBoost (AT)   & \textbf{99.33\%} & \textbf{98.67\%} & \textbf{0.67\%} & \textbf{1.33\%} \\
+\midrule
+MLP            & 98.00\% & 0.00\%   & 98.00\% & 100.00\% \\
+MLP (AT)       & 98.00\% & 55.00\%  & 43.00\% & 45.00\%  \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.95\textwidth]{figures/fig14_defense_core_comparison.png}
+  \caption{Phase 4 defense core comparison (3-panel): (Left) clean recall, (Centre) ASR before/after AT, (Right) adversarial recall. Blue = clean model, green = adversarially trained (AT). AT-XGBoost achieves near-zero ASR (1.33\%) with zero clean recall penalty.}
+  \label{fig:defensecore}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.85\textwidth]{figures/fig15_security_utility_tradeoff.png}
+  \caption{Security-utility tradeoff curve. Blue line (left axis): clean detection accuracy as a function of adversarial augmentation rate. Red dashed line (right axis): ASR. The optimal operating point (20\% augmentation rate, marked with amber vertical line) simultaneously minimises ASR and preserves clean accuracy.}
+  \label{fig:tradeoff}
+\end{figure}
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.72\textwidth]{figures/fig18_radar_defense_profile.png}
+  \caption{Radar/spider chart: defense profile comparison across all four models on five dimensions (Clean Recall, Adv.\ Recall, Robustness (100-ASR), F1-Score, AUC$\times$100). AT-XGBoost (green, solid) is the only model with a consistently large polygon across all dimensions.}
+  \label{fig:radar}
+\end{figure}
+
+The adversarially trained XGBoost (AT-XGBoost) achieves a 96.8\% relative reduction in ASR (from 41.67\% to 1.33\%) with \textbf{zero penalty to clean recall} (99.33\% in both cases). This result is statistically remarkable: adversarial training classically degrades clean accuracy~\cite{madry2018towards}, yet AT-XGBoost maintains identical performance on benign and unperturbed attack traffic while nearly eliminating vulnerability to adaptive white-box attacks.
+
+\textbf{Finding 3 (Security-Utility Pareto Optimality):} \textit{Adversarially trained XGBoost achieves Pareto dominance over all evaluated models: no other model simultaneously achieves clean recall $\geq 99\%$ and ASR $\leq 5\%$. The 20\% Gaussian Subspace Smoothing augmentation rate is the empirical Pareto-optimal operating point for this dataset.}
+
+\subsection{Per-Class Defense Effectiveness}
+
+Figure~\ref{fig:perclassdefense} presents the per-class ASR heatmap comparing clean and AT-XGBoost. While AT dramatically reduces ASR for the majority of attack classes (DDoS, DoS, brute force categories all drop to near 0\%), three application-layer attack classes retain elevated ASR even after AT: XSS (100\%), Command Injection (95\%), and Dictionary Brute Force (86.1\%). These attacks involve feature distributions closer to benign browsing traffic, making adversarial perturbation structurally easier.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.85\textwidth]{figures/fig16_per_class_defense_heatmap.png}
+  \caption{Per-class defense effectiveness heatmap (sorted by ASR reduction). Green = low ASR (well-defended), red = high ASR (still vulnerable). AT-XGBoost achieves near-zero ASR for DDoS, DoS, and brute-force classes, but application-layer attacks (XSS, Command Injection) retain residual vulnerability.}
+  \label{fig:perclassdefense}
+\end{figure}
+
+\subsection{Cross-Architecture Defense Transferability}
+
+The cross-architecture transfer matrix (Figure~\ref{fig:transfer}) reveals that XGBoost-crafted adversarial examples transfer to MLP with only 16\% ASR, while MLP-crafted examples do not transfer to XGBoost (0\% ASR). Both AT models demonstrate strong robustness to cross-architecture transfer attacks (0.5\% and 1.5\% respectively), confirming that adversarial training generalises beyond the surrogate model used during training.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.80\textwidth]{figures/fig17_cross_arch_transfer_matrix.png}
+  \caption{Cross-architecture adversarial transfer matrix. Rows = surrogate model used to craft adversarial examples; columns = target model being tested. AT models (rightmost two columns) show near-zero transfer ASR, confirming that adversarial training generalises to cross-architecture attacks.}
+  \label{fig:transfer}
+\end{figure}
+
+% ─────────────────────────────────────────────────────────────
+\section{Phase 5: Advanced Analysis and Interpretability}
+\label{sec:phase5}
+% ─────────────────────────────────────────────────────────────
+
+\subsection{t-SNE Feature Space Visualisation}
+
+Figure~\ref{fig:tsne} presents a t-SNE embedding of 600 clean attack samples, 200 benign samples, and 600 adversarial examples generated by the Phase 2 GA in the 39-dimensional feature space (with PCA pre-reduction to 20 components for stability). Three distinct spatial regions are observable: (1) a dense benign cluster (green); (2) a dense clean attack cluster (blue), well-separated from benign traffic; and (3) a dispersed adversarial cluster (red) partially overlapping with the benign region. The right panel overlays kernel density estimates, confirming that the GA successfully repositions attack traffic toward the model's benign decision region without fully merging into it --- a critical semantic constraint that distinguishes our approach from unconstrained adversarial attacks. The overlap region represents the adversarial perturbation subspace: points that have been moved far enough in feature space to cause misclassification while remaining within the $\varepsilon$ budget constraint.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.95\textwidth]{figures/fig19_tsne_feature_space.png}
+  \caption{t-SNE feature space embedding ($n = 1,400$ total samples: 200 benign, 600 clean attacks, 600 adversarial). Left: scatter plot showing three distinct regions. Right: kernel density overlay showing adversarial examples (red) partially overlapping with the benign cluster (green), confirming successful feature-space migration toward the benign decision region.}
+  \label{fig:tsne}
+\end{figure}
+
+\subsection{Pareto Frontier Analysis}
+
+Figure~\ref{fig:pareto} plots ASR against perturbation budget $\varepsilon$ for all four models, with Pareto-optimal frontiers overlaid. AT-XGBoost occupies the most favourable position in the security-perturbation space: an attacker must invest the largest $\varepsilon$ budget to achieve any meaningful ASR. MLP (clean) occupies the worst position, reaching near-100\% ASR at $\varepsilon = 5.5$ with relatively low perturbation cost. The ``Safe Zone'' (ASR $< 5\%$) is shaded in the figure: only AT-XGBoost maintains operation within this zone across the entire tested $\varepsilon$ range up to 5.0.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.95\textwidth]{figures/fig20_pareto_frontier.png}
+  \caption{Pareto frontier analysis: ASR vs.\ perturbation budget for all four models. Left: full ASR curves. Right: Pareto-optimal operating points per model. AT-XGBoost (green) dominates all other models, remaining within the Safe Zone (ASR $< 5\%$, grey shading) across the full tested range.}
+  \label{fig:pareto}
+\end{figure}
+
+\subsection{Feature Importance Drift After Adversarial Training}
+
+Adversarial training induces measurable redistribution of XGBoost's feature importance distribution (Figure~\ref{fig:drift}). The \texttt{Number} feature, which dominated the baseline model's decision (92.25\% importance), shows reduced weight after adversarial training as the model is forced to distribute reliance across secondary features such as \textit{Flow IAT Mean}, \textit{Fwd Packet Length Max}, and \textit{Tot size of bckwd packet}. This redistribution is a desirable property: a model relying on a broader set of features is inherently less susceptible to single-feature-guided adversarial perturbations. The drift also provides indirect evidence that GSS successfully shifts the decision boundary rather than merely memorising the specific adversarial points used during training.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.95\textwidth]{figures/fig21_feature_importance_drift.png}
+  \caption{Feature importance drift after adversarial training. Left: side-by-side importance scores for baseline XGBoost (blue) and AT-XGBoost (green). Right: drift chart showing which features gained (green) or lost (red) importance after AT. The dominant \texttt{Number} feature loses importance weight, indicating that the AT model has learned to rely on a more diverse feature set.}
+  \label{fig:drift}
+\end{figure}
+
+% ─────────────────────────────────────────────────────────────
+\section{Discussion}
+\label{sec:discussion}
+% ─────────────────────────────────────────────────────────────
+
+\subsection{Practical Security Implications}
+
+Our results carry direct implications for Security Operations Centre (SOC) deployment decisions:
+
+\begin{enumerate}
+    \item \textbf{Avoid undefended MLP for high-assurance IDS:} The 100\% ASR achieved against the undefended MLP baseline indicates that standard neural architectures, while achieving comparable clean accuracy, offer substantially weaker resistance to targeted adversarial attacks than tree-based alternatives. Even after adversarial training, MLP retains 45\% ASR --- unacceptable for production IDS deployment.
+    \item \textbf{Deploy AT-XGBoost with 20\% adversarial augmentation:} Our proposed defense achieves the empirical security-utility Pareto frontier, reducing ASR below 1.5\% with no degradation to normal detection capabilities.
+    \item \textbf{Residual risk in application-layer attacks:} Even AT-XGBoost shows elevated ASR for XSS (100\%), Command Injection (95\%), and Dictionary Brute Force (86.1\%) attack classes. These attack types involve feature distributions closer to benign browsing traffic, making adversarial perturbation easier. Separate specialised classifiers for these classes, or application-layer deep packet inspection, are recommended as a complement.
+    \item \textbf{Architecture vs.\ black-box risk:} RF is the recommended architecture when the attacker's model knowledge is uncertain (black-box setting). AT-XGBoost is recommended when model details may be exposed (white-box setting).
+\end{enumerate}
+
+\subsection{Comparison with State of the Art}
+
+The 1.33\% post-defense ASR achieved by AT-XGBoost compares favourably with prior adversarial IDS defense results. Apruzzese et al.~\cite{apruzzese2022modeling} report residual ASR values of 15--30\% for adversarially trained neural IDS models. Zhang and Wang~\cite{zhang2022adversarial} achieve 8\% residual ASR using adversarial training without subspace smoothing. Our result of 1.33\% represents a substantial improvement attributable specifically to the Gaussian Subspace Smoothing mechanism, which prevents decision-boundary memorisation under up-sampling.
+
+\subsection{Limitations}
+
+This study evaluates adversarial robustness under the assumption that network-layer feature perturbations are the attacker's primary mechanism. In practice, attackers may also craft adversarial examples at the raw packet level using tools such as Scapy, which introduces additional problem-space constraints~\cite{sheatsley2022space} not captured in our feature-space attack model. Additionally, our evaluation uses static trained models; adaptive attacks that continuously query and update their strategy during deployment represent a more powerful threat model not addressed here. Finally, all experiments use a single dataset (CIC-IoT2023); generalisation to other network environments and datasets should be validated in future work.
+
+% ─────────────────────────────────────────────────────────────
+\section{Conclusion}
+\label{sec:conclusion}
+% ─────────────────────────────────────────────────────────────
+
+This paper presented a comprehensive adversarial robustness analysis of tree-based IDS classifiers on the CIC-IoT2023 dataset. Through four experimental phases spanning baseline characterisation, adversarial evasion, cross-architecture comparison, and adversarial training defense, we established three principal findings: (1) tree-based models exhibit a phase transition in adversarial vulnerability at a critical perturbation budget ($\varepsilon \approx 4.69$); (2) MLP architectures are categorically more vulnerable than XGBoost under identical feature-constrained attacks (100\% vs.\ 57\% ASR); and (3) adversarial training augmented with Gaussian Subspace Smoothing achieves near-complete robustness (1.33\% ASR) with no utility penalty.
+
+These results provide the first empirical evidence that adversarially trained XGBoost achieves Pareto-optimal security-utility tradeoffs in network intrusion detection --- a finding with immediate practical implications for SOC deployment and model selection decisions.
+
+Future work will explore: (1) problem-space attacks using packet crafting frameworks to validate feature-space findings; (2) online adaptive adversarial training that continuously updates the model as new attack strategies are observed; (3) adversarial robustness in federated IDS architectures where the model is distributed across multiple nodes; and (4) application of GSS to other structured tabular domains beyond network intrusion detection.
+
+% ─────────────────────────────────────────────────────────────
+\section*{Data Availability}
+All source code, trained model files (\texttt{.joblib}), processed dataset files (\texttt{.parquet}), and all 22 publication-ready figures are publicly available at: \url{https://github.com/DHANANJAY-2006/Research_Paper_Stuff}. The raw CIC-IoT2023 dataset can be downloaded from the Canadian Institute for Cybersecurity: \url{https://www.unb.ca/cic/datasets/iotdataset-2023.html}.
+
+\section*{Acknowledgements}
+The author thanks the School of Engineering Technology, MGM University, for providing the computational resources used in this research.
+
+\section*{Declaration of Competing Interest}
+The author declares that there are no known competing financial interests or personal relationships that could have appeared to influence the work reported in this paper.
+
+\bibliography{references}
+
+\end{document}
