@@ -50,7 +50,7 @@ jobs:
             **"Adversarial Robustness of Tree-Based Intrusion Detection Systems Under Feature-Constrained Evasion Attacks"**
 
             - **Direct Download:** [Adversarial_IDS_Paper.pdf](https://github.com/${{ github.repository }}/releases/download/latest/Adversarial_IDS_Paper.pdf)
-            - **View in GitHub Viewer:** [View on GitHub](https://github.com/${{ github.repository }}/blob/pdf-preview/Adversarial_IDS_Paper.pdf)
+            - **View in GitHub Browser:** [View PDF on GitHub](https://github.com/${{ github.repository }}/blob/pdf-preview/Adversarial_IDS_Paper.pdf)
           files: Adversarial_IDS_Paper.pdf
 
       - name: Deploy PDF to 'pdf-preview' branch for in-browser viewing
@@ -58,9 +58,11 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          mkdir -p /tmp/pdf_out
+          cp Adversarial_IDS_Paper.pdf /tmp/pdf_out/
           git checkout --orphan pdf-preview
           git rm -rf .
-          mv Adversarial_IDS_Paper.pdf .
+          cp /tmp/pdf_out/Adversarial_IDS_Paper.pdf .
           git add Adversarial_IDS_Paper.pdf
           git commit -m "Auto-update compiled PDF [skip ci]"
-          git push -f origin pdf-preview
+          git push -u -f origin pdf-preview
