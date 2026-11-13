@@ -103,6 +103,6 @@ The CIC-IoT2023 dataset is publicly hosted by the Canadian Institute for Cyberse
 ---
 
 ## Authors & Contact
-- **Dhananjay Kadge** (Corresponding Author) — `dhananjay.kadge@mgmu.ac.in`
-- **Rupali Deshmukh** (Co-Author) — `rupali.deshmukh@mgmu.ac.in`  
+- **Dhananjay Kadge** (Corresponding Author, Researcher) — `kadge.dhananjay.in@gmail.com`
+- **Prof. Rupali Deshmukh** (Co-Author, Faculty Supervisor) — `rdeshmukh@mgmu.ac.in`  
 Department of Computer Science and Engineering, School of Engineering and Technology, MGM University, Chhatrapati Sambhajinagar 431003, Maharashtra, India.
