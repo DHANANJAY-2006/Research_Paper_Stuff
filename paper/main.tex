@@ -760,25 +760,26 @@ The operational parameter space is divided into risk zones, with the ``Safe Zone
 \subsection{Feature Importance Drift Induced by Adversarial Training}
 To evaluate how GSS restructuring alters model decision logic, we analyze the feature importance drift between baseline XGBoost and AT-XGBoost. Table~\ref{tab:drift} and Figure~\ref{fig:drift} illustrate the redistribution of feature attributions.
 
-\begin{table*}[t]
+\begin{table}[htbp]
 \centering
-\small
+\footnotesize
+\renewcommand{\arraystretch}{1.05}
 \caption{Feature importance attribution drift following GSS adversarial training.}
 \label{tab:drift}
-\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}lccc}
+\begin{tabular*}{\columnwidth}{@{\extracolsep{\fill}}lccc}
 \toprule
-\textbf{Feature Dimension} & \textbf{Baseline XGBoost Weight} & \textbf{AT-XGBoost Weight} & \textbf{Relative Drift} \\
+\textbf{Feature Dimension} & \textbf{Baseline} & \textbf{AT-XGB} & \textbf{Drift} \\
 \midrule
 \texttt{Number} (Packet Count) & 92.25\% & 68.14\% & $-24.11$ pp \\
-\texttt{Tot size of bckwd packet} & 2.15\% & 8.42\% & $+6.27$ pp \\
+\texttt{Tot size bckwd packet} & 2.15\% & 8.42\% & $+6.27$ pp \\
 \texttt{Flow IAT Mean} & 1.48\% & 6.91\% & $+5.43$ pp \\
 \texttt{Duration} & 1.12\% & 5.15\% & $+4.03$ pp \\
-\texttt{Fwd Packet Length Max} & 0.85\% & 4.22\% & $+3.37$ pp \\
+\texttt{Fwd Pkt Length Max} & 0.85\% & 4.22\% & $+3.37$ pp \\
 \texttt{Bckwd IAT Mean} & 0.62\% & 3.88\% & $+3.26$ pp \\
 Other Features (Combined) & 1.53\% & 3.28\% & $+1.75$ pp \\
 \bottomrule
 \end{tabular*}
-\end{table*}
+\end{table}
 
 \begin{figure*}[htbp]
   \centering
@@ -808,21 +809,29 @@ To translate our theoretical and empirical insights into operational practice, T
 
 \begin{table*}[t]
 \centering
-\small
-\renewcommand{\arraystretch}{1.15}
-{\linespread{1.0}\selectfont
+\footnotesize
+\renewcommand{\arraystretch}{1.25}
 \caption{Threat-Informed SOC Deployment Matrix across network infrastructure tiers.}
 \label{tab:soc_matrix}
-\begin{tabularx}{\textwidth}{l p{2.6cm} p{2.2cm} c c X}
+\begin{tabularx}{\textwidth}{p{2.9cm} p{2.6cm} p{2.4cm} c c X}
 \toprule
 \textbf{Infrastructure Tier} & \textbf{Deployment Target} & \textbf{Hardened Model} & \textbf{Throughput} & \textbf{Hardened ASR} & \textbf{Operational Focus \& Residual Mitigation} \\
 \midrule
-\textbf{Tier 1: Edge \& Gateway} & Smart meters, edge gateways, RTUs, sensor hubs & LightGBM + GSS ($r=10\%$, $\sigma=0.3$) & $>150,000$ flows/s & 4.20\% & Extremely low memory footprint ($<15$ MB); zero runtime GPU dependency; mitigates volumetric flood attacks at ingress. \\
-\textbf{Tier 2: Enterprise Core} & Campus core switches, OT distribution nodes & XGBoost + GSS ($r=20\%$, $\sigma=0.5$) & $\approx 65,000$ flows/s & \textbf{1.33\%} & Maximum tabular robustness; eliminates 96.8\% of GA evasion; serves as primary automated isolation trigger. \\
-\textbf{Tier 3: Perimeter / SOC} & Datacenter DMZ, cloud ingress, SIEM triage pipeline & Hybrid Pipeline (AT-XGBoost + DPI + Suricata) & Line-rate hardware offload & $<0.50\%$ & Flow-level classification handles volumetric/DoS threats; DPI inspects application payloads to neutralize XSS and Command Injection. \\
+\textbf{Tier 1: Edge \& Gateway} & Smart meters, edge gateways, RTUs, sensor hubs & LightGBM + GSS ($r=10\%$, $\sigma=0.3$) & $>150,000$ flows/s & 4.20\% & 
+\textbf{(1)} Ingress flood suppression with minimal memory footprint ($<15$~MB) and zero GPU dependency; \newline
+\textbf{(2)} Drops high-rate volumetric anomalies locally before packets reach core routing switches. \\
+\addlinespace[3pt]
+\midrule
+\textbf{Tier 2: Enterprise Core} & Campus core switches, OT distribution nodes & XGBoost + GSS ($r=20\%$, $\sigma=0.5$) & $\approx 65,000$ flows/s & \textbf{1.33\%} & 
+\textbf{(1)} Maximum tabular robustness against adaptive search, eliminating 96.8\% of GA evasion attempts; \newline
+\textbf{(2)} Serves as primary automated isolation trigger while preserving 99.33\% clean detection recall. \\
+\addlinespace[3pt]
+\midrule
+\textbf{Tier 3: Perimeter / SOC} & Datacenter DMZ, cloud ingress, SIEM triage pipeline & Hybrid Pipeline (AT-XGBoost + DPI + Suricata) & Line-rate hardware offload & $<0.50\%$ & 
+\textbf{(1)} Line-rate flow filtering isolates volumetric floods and transport-layer anomalies; \newline
+\textbf{(2)} Integrated Deep Packet Inspection (DPI) inspects application payloads to neutralize residual exploits (XSS, Command Injection). \\
 \bottomrule
 \end{tabularx}
-\par}
 \end{table*}
 
 \subsection{Comparison with State-of-the-Art Defenses}
