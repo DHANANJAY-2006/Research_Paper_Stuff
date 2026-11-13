@@ -1,7 +1,7 @@
 @inproceedings{chen2016xgboost,
   author    = {Chen, Tianqi and Guestrin, Carlos},
   title     = {{XGBoost}: A Scalable Tree Boosting System},
-  booktitle = {Proceedings of the 22nd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining},
+  booktitle = {Proceedings of the 22nd ACM SIGKDD International Conference on Knowledge Discovery and Data Mining (KDD)},
   pages     = {785--794},
   year      = {2016},
   doi       = {10.1145/2939672.2939785},
@@ -10,9 +10,11 @@
 @article{ke2017lightgbm,
   author  = {Ke, Guolin and Meng, Qi and Finley, Thomas and Wang, Taifeng and Chen, Wei and Ma, Weidong and Ye, Qiwei and Liu, Tie-Yan},
   title   = {{LightGBM}: A Highly Efficient Gradient Boosting Decision Tree},
-  journal = {Advances in Neural Information Processing Systems},
+  journal = {Advances in Neural Information Processing Systems (NeurIPS)},
   volume  = {30},
+  pages   = {3146--3154},
   year    = {2017},
+  url     = {https://proceedings.neurips.cc/paper_files/paper/2017/hash/6449f44a102fde848669bdd9eb6b76fa-Abstract.html},
 }
 
 @article{breiman2001random,
@@ -26,18 +28,20 @@
   doi     = {10.1023/A:1010933404324},
 }
 
-@article{goodfellow2014explaining,
-  author  = {Goodfellow, Ian and Shlens, Jonathon and Szegedy, Christian},
-  title   = {Explaining and Harnessing Adversarial Examples},
-  journal = {arXiv preprint arXiv:1412.6572},
-  year    = {2014},
+@inproceedings{goodfellow2014explaining,
+  author    = {Goodfellow, Ian J. and Shlens, Jonathon and Szegedy, Christian},
+  title     = {Explaining and Harnessing Adversarial Examples},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2015},
+  doi       = {10.48550/arXiv.1412.6572},
 }
 
 @inproceedings{madry2018towards,
   author    = {Madry, Aleksander and Makelov, Aleksandar and Schmidt, Ludwig and Tsipras, Dimitris and Vladu, Adrian},
   title     = {Towards Deep Learning Models Resistant to Adversarial Attacks},
-  booktitle = {International Conference on Learning Representations},
+  booktitle = {International Conference on Learning Representations (ICLR)},
   year      = {2018},
+  doi       = {10.48550/arXiv.1706.06083},
 }
 
 @inproceedings{carlini2017evaluating,
@@ -52,22 +56,27 @@
 @inproceedings{cohen2019certified,
   author    = {Cohen, Jeremy and Rosenfeld, Elan and Kolter, J. Zico},
   title     = {Certified Adversarial Robustness via Randomized Smoothing},
-  booktitle = {International Conference on Machine Learning (ICML)},
+  booktitle = {Proceedings of the 36th International Conference on Machine Learning (ICML)},
+  series    = {Proceedings of Machine Learning Research},
+  volume    = {97},
   pages     = {1310--1320},
   year      = {2019},
+  doi       = {10.48550/arXiv.1902.02918},
 }
 
 @article{lundberg2017shap,
   author  = {Lundberg, Scott M. and Lee, Su-In},
   title   = {A Unified Approach to Interpreting Model Predictions},
-  journal = {Advances in Neural Information Processing Systems},
+  journal = {Advances in Neural Information Processing Systems (NeurIPS)},
   volume  = {30},
+  pages   = {4765--4774},
   year    = {2017},
+  doi     = {10.48550/arXiv.1705.07874},
 }
 
 @article{corona2013adversarial,
   author  = {Corona, Igino and Giacinto, Giorgio and Roli, Fabio},
-  title   = {Adversarial Attacks against Intrusion Detection Systems: Taxonomy, Solutions and Open Issues},
+  title   = {Adversarial Attacks Against Intrusion Detection Systems: Taxonomy, Solutions and Open Issues},
   journal = {Information Sciences},
   volume  = {239},
   pages   = {201--225},
@@ -75,20 +84,32 @@
   doi     = {10.1016/j.ins.2013.03.022},
 }
 
-@inproceedings{zhang2022adversarial,
-  author    = {Zhang, Han and Wang, Jianping},
-  title     = {Adversarial Examples for Network Intrusion Detection Systems},
-  booktitle = {IEEE International Conference on Computer Communications (INFOCOM)},
-  year      = {2022},
+@inproceedings{szegedy2014intriguing,
+  author    = {Szegedy, Christian and Zaremba, Wojciech and Sutskever, Ilya and Bruna, Joan and Erhan, Dumitru and Goodfellow, Ian and Fergus, Rob},
+  title     = {Intriguing Properties of Neural Networks},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2014},
+  doi       = {10.48550/arXiv.1312.6199},
+}
+
+@article{calzavara2020treant,
+  author  = {Calzavara, Stefano and Lucchese, Claudio and Tolomei, Gabriele and Abebe, Seyum Assefa and Orlando, Salvatore},
+  title   = {Treant: Training Evasion-Aware Decision Trees},
+  journal = {Data Mining and Knowledge Discovery},
+  volume  = {35},
+  number  = {4},
+  pages   = {1458--1488},
+  year    = {2021},
+  doi     = {10.1007/s10618-020-00694-9},
 }
 
 @article{apruzzese2022modeling,
-  author  = {Apruzzese, Giovanni and Colajanni, Michele and Ferretti, Luca and Marchetti, Mirco},
+  author  = {Apruzzese, Giovanni and Andreolini, Mauro and Ferretti, Luca and Marchetti, Mirco and Colajanni, Michele},
   title   = {Modeling Realistic Adversarial Attacks Against Network Intrusion Detection Systems},
   journal = {Digital Threats: Research and Practice},
   volume  = {3},
   number  = {3},
-  pages   = {1--19},
+  pages   = {1--26},
   year    = {2022},
   doi     = {10.1145/3469659},
 }
@@ -103,10 +124,14 @@
 }
 
 @article{sheatsley2022space,
-  author  = {Sheatsley, Ryan and Hoak, Blaine and Pauley, Eric and Shi, Yohan and Beugin, Kevin and McDaniel, Patrick},
-  title   = {{SPACE}: Evaluating Adversarial Examples in Intrusion Detection},
-  journal = {arXiv preprint arXiv:2209.00964},
+  author  = {Sheatsley, Ryan and Papernot, Nicolas and Weisman, Michael J. and Verma, Gunjan and McDaniel, Patrick},
+  title   = {Adversarial Examples for Network Intrusion Detection Systems},
+  journal = {Journal of Computer Security},
+  volume  = {30},
+  number  = {5},
+  pages   = {727--752},
   year    = {2022},
+  doi     = {10.3233/JCS-210094},
 }
 
 @article{deb2002nsga,
@@ -143,23 +168,24 @@
 @article{tramer2020adaptive,
   author  = {Tramer, Florian and Carlini, Nicholas and Brendel, Wieland and Madry, Aleksander},
   title   = {On Adaptive Attacks to Adversarial Example Defenses},
-  journal = {Advances in Neural Information Processing Systems},
+  journal = {Advances in Neural Information Processing Systems (NeurIPS)},
   volume  = {33},
   pages   = {1633--1645},
   year    = {2020},
+  doi     = {10.48550/arXiv.2002.08347},
 }
 
 @inproceedings{sommer2010outside,
   author    = {Sommer, Robin and Paxson, Vern},
   title     = {Outside the Closed World: On Using Machine Learning for Network Intrusion Detection},
-  booktitle = {IEEE Symposium on Security and Privacy},
+  booktitle = {2010 IEEE Symposium on Security and Privacy (S\&P)},
   pages     = {305--316},
   year      = {2010},
   doi       = {10.1109/SP.2010.25},
 }
 
 @article{neto2023ciciot2023,
-  author  = {Neto, Ealber Maciel Nunes and Brito Neto, Madson and de Oliveira Brito, Itamar and de Carvalho Bertoli, Gustavo and Melo, Lucas and Fernandes, Eduardo and de Aguiar, Luciano Paschoal},
+  author  = {Neto, Euclides Carlos Pinto and Dadkhah, Sajjad and Ferreira, Raphael and Zohourian, Alireza and Lu, Rongxing and Ghorbani, Ali A.},
   title   = {{CICIoT2023}: A Real-Time Dataset and Benchmark for Large-Scale Attacks in {IoT} Environment},
   journal = {Sensors},
   volume  = {23},
@@ -169,13 +195,65 @@
   doi     = {10.3390/s23135941},
 }
 
-@article{hassanin2023iot,
-  author  = {Hassanin, Mohammed and Kasem, Mustafa and Khalifa, Sara and Nicholson, Alan},
-  title   = {A Survey on Machine Learning Techniques Applied to Intrusion Detection in {IoT} Networks},
-  journal = {IEEE Internet of Things Journal},
-  volume  = {10},
-  number  = {12},
-  pages   = {10551--10578},
-  year    = {2023},
-  doi     = {10.1109/JIOT.2023.3237990},
+@article{hussain2020survey,
+  author  = {Hussain, Faheem and Hussain, Rasheed and Hassan, Syed Ali and Hossain, Ekram},
+  title   = {Machine Learning in {IoT} Security: Current Solutions and Future Challenges},
+  journal = {IEEE Communications Surveys \& Tutorials},
+  volume  = {22},
+  number  = {3},
+  pages   = {1686--1721},
+  year    = {2020},
+  doi     = {10.1109/COMST.2020.2986444},
+}
+
+@inproceedings{kantchelian2016evasion,
+  author    = {Kantchelian, Alex and Tygar, J. D. and Joseph, Anthony D.},
+  title     = {Evasion and Hardening of Tree Ensemble Classifiers},
+  booktitle = {Proceedings of the 33rd International Conference on Machine Learning (ICML)},
+  series    = {Proceedings of Machine Learning Research},
+  volume    = {48},
+  pages     = {2387--2396},
+  year      = {2016},
+  doi       = {10.48550/arXiv.1509.07892},
+}
+
+@inproceedings{chen2019robust,
+  author    = {Chen, Hongge and Zhang, Huan and Boning, Duane and Hsieh, Cho-Jui},
+  title     = {Robust Decision Trees Against Adversarial Examples},
+  booktitle = {Proceedings of the 36th International Conference on Machine Learning (ICML)},
+  series    = {Proceedings of Machine Learning Research},
+  volume    = {97},
+  pages     = {1122--1131},
+  year      = {2019},
+  doi       = {10.48550/arXiv.1902.10660},
+}
+
+@article{alhajjar2021adversarial,
+  author  = {Alhajjar, Elie and Maxwell, Paul and Bastian, Nathaniel},
+  title   = {Adversarial Machine Learning in Network Intrusion Detection Systems},
+  journal = {Expert Systems with Applications},
+  volume  = {186},
+  pages   = {115782},
+  year    = {2021},
+  doi     = {10.1016/j.eswa.2021.115782},
+}
+
+@inproceedings{pierazzi2020intriguing,
+  author    = {Pierazzi, Fabio and Pendlebury, Feargus and Cortellazzi, Jacopo and Cavallaro, Lorenzo},
+  title     = {Intriguing Properties of Adversarial {ML} Attacks in the Problem Space},
+  booktitle = {2020 IEEE Symposium on Security and Privacy (S\&P)},
+  pages     = {1332--1349},
+  year      = {2020},
+  doi       = {10.1109/SP40000.2020.00073},
+}
+
+@inproceedings{croce2020reliable,
+  author    = {Croce, Francesco and Hein, Matthias},
+  title     = {Reliable Evaluation of Adversarial Robustness with an Ensemble of Diverse Parameter-Free Attacks},
+  booktitle = {Proceedings of the 37th International Conference on Machine Learning (ICML)},
+  series    = {Proceedings of Machine Learning Research},
+  volume    = {119},
+  pages     = {2206--2216},
+  year      = {2020},
+  doi       = {10.48550/arXiv.2003.01690},
 }
