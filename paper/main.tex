@@ -41,11 +41,11 @@
 \address[a]{Department of Computer Science and Engineering, School of Engineering and Technology, MGM University, Chhatrapati Sambhajinagar 431003, Maharashtra, India}
 
 \begin{abstract}
-Tree-based classifiers like Random Forest and XGBoost are the standard choice for network intrusion detection. On clean traffic from modern IoT benchmarks, they easily achieve over 99\% accuracy. But what happens when an attacker modifies packet flows to slip past the detector without breaking TCP connections? In this paper, we evaluate the robustness of Random Forest, XGBoost, LightGBM, and a multi-layer perceptron on the CIC-IoT2023 dataset (701,978 flows, 31 attack classes). To keep the attacks realistic, we build a multi-objective genetic algorithm that changes only continuous flow statistics---like packet size and inter-arrival timing---while leaving discrete TCP flags, ports, and protocols intact. 
+Security teams widely rely on decision tree ensembles---such as Random Forest, XGBoost, and LightGBM---for network intrusion detection because they train quickly and regularly score above 99\% on standard benchmarks. Yet these scores tell us very little about how models behave when an adversary deliberately tweaks traffic features to slip past the detector. In this study, we evaluate the adversarial robustness of Random Forest, XGBoost, LightGBM, and a deep multi-layer perceptron on the CIC-IoT2023 dataset, which spans 701,978 flow records and 31 attack classes from 105 physical devices. To ensure generated flows remain deliverable across real networks, our attack mutates only continuous flow properties---like packet lengths and inter-arrival intervals---while keeping TCP flags, port assignments, and protocol fields strictly unchanged.
 
-Our experiments reveal three key findings. First, tree ensembles do not degrade gradually under perturbation; they drop off a cliff. For XGBoost, evasion stays under 2.40\% until the perturbation budget reaches $\varepsilon = 4.69$, where evasion suddenly spikes to 63.20\%. We trace this jump directly to the root decision split on flow packet count. Second, neural networks handle these tabular attacks poorly: the MLP collapsed to 100\% evasion, while XGBoost kept 44\% recall under identical limits. Third, Random Forest shows an interesting split: it repels attacks transferred from other models (only 2.00\% transfer evasion), but fails almost completely when an attacker can query it directly (99.00\% evasion).
+The results highlight three clear patterns. First, tree-based models do not weaken gradually as perturbation grows; they fall off a cliff. For XGBoost, evasion stays under 2.40\% until the perturbation budget reaches $\varepsilon = 4.69$, where it suddenly leaps to 63.20\%. This jump happens because the perturbation finally crosses the root decision boundary on packet count. Second, neural networks proved far less resilient on tabular traffic: the multi-layer perceptron collapsed to 100\% evasion under attacks where XGBoost still detected 44\% of malicious flows. Third, Random Forest displayed a notable contrast: it shrugged off 98\% of black-box transfer attacks crafted on a surrogate, but failed almost completely (99\% evasion) when attacked with direct query access.
 
-Standard adversarial retraining on decision trees usually causes overfitting, as trees build narrow leaves around synthetic attack points and lose accuracy on normal traffic. To prevent this, we propose Gaussian Subspace Smoothing (GSS). GSS injects small Gaussian noise into mutable features during training. This spreads discrete attack samples into continuous density clouds. This forces the trees to learn broader, smoother split boundaries. Retrained with GSS, XGBoost's evasion rate drops from 41.67\% to 1.33\%, with no loss in clean detection recall (99.33\%). All code, datasets, and models are available in our public repository.
+Retraining decision trees on adversarial examples typically causes overfitting, as trees build narrow leaf splits around synthetic points and lose accuracy on benign traffic. To solve this, we introduce Gaussian Subspace Smoothing (GSS), which adds continuous noise to mutable features during training. This forces the trees to learn broader, smoother split regions. Applying GSS to XGBoost drives its evasion rate down from 41.67\% to 1.33\% while keeping clean detection recall at 99.33\%. All source code, trained models, and benchmark splits are publicly available in our repository.
 \end{abstract}
 
 \begin{keyword}
@@ -297,18 +297,18 @@ Evaluation Seed & 42 & Enforces deterministic, fully reproducible experimental r
 \label{alg:ga}
 \footnotesize
 \begin{algorithmic}[1]
-\Require Input vector $\mathbf{x} \in \mathbb{R}^d$, model $p_\theta: \mathbb{R}^d \to [0, 1]$, mutable subspace $\mathcal{F}_{\text{mut}}$, budget $\varepsilon$, generations $G$, population $P$, weight $\alpha \in [0, 1]$.
-\Ensure Evasive sample $\mathbf{x}_{\text{adv}}$, or $\perp$ on failure.
-\State Initialize population $\mathcal{P} \leftarrow \{\boldsymbol{\delta}^{(1)}, \dots, \boldsymbol{\delta}^{(P)}\}$ with $\delta^{(k)}_i \sim \mathcal{U}(-\varepsilon, \varepsilon) \; (\forall i \in \mathcal{F}_{\text{mut}})$ and $\delta^{(k)}_j = 0 \; (\forall j \notin \mathcal{F}_{\text{mut}})$
-\For{$g \leftarrow 1$ \textbf{to} $G$}
+\Require Malicious flow $\mathbf{x} \in \mathbb{R}^d$, detector $p_\theta$, mutable subspace $\mathcal{F}_{\text{mut}}$, budget $\varepsilon$, generations $G$, population $P$, weight $\alpha \in [0, 1]$.
+\Ensure Evasive flow $\mathbf{x}_{\text{adv}}$ (or original flow $\mathbf{x}$ if evasion fails).
+\State Initialize population $\mathcal{P} \leftarrow \{\boldsymbol{\delta}^{(1)}, \dots, \boldsymbol{\delta}^{(P)}\}$ with random $\delta^{(k)}_i \in [-\varepsilon, \varepsilon] \; (\forall i \in \mathcal{F}_{\text{mut}})$ and $\delta^{(k)}_j = 0 \; (\forall j \notin \mathcal{F}_{\text{mut}})$
+\For{$g = 1$ \textbf{to} $G$}
     \State $\mathbf{X}_{\text{cand}} \leftarrow \{\mathbf{x} + \boldsymbol{\delta}^{(k)}\}_{k=1}^P$
     \State $\mathbf{p} \leftarrow p_\theta(\mathbf{X}_{\text{cand}})$
     \State $\mathcal{S} \leftarrow \{k \in \{1, \dots, P\} \mid p_k < 0.5\}$
     \If{$\mathcal{S} \neq \emptyset$}
         \State $k^* \leftarrow \arg\min_{k \in \mathcal{S}} \|\boldsymbol{\delta}^{(k)}_{\mathcal{F}_{\text{mut}}}\|_2$
-        \State \Return $\mathbf{x} + \boldsymbol{\delta}^{(k^*)}$ \Comment{Early termination: return stealthiest evasion}
+        \State \Return $\mathbf{x} + \boldsymbol{\delta}^{(k^*)}$
     \EndIf
-    \For{$k \leftarrow 1$ \textbf{to} $P$}
+    \For{$k = 1$ \textbf{to} $P$}
         \State $\mathcal{J}_k \leftarrow \alpha p_k + (1-\alpha) \cdot \frac{\|\boldsymbol{\delta}^{(k)}_{\mathcal{F}_{\text{mut}}}\|_2}{\sqrt{|\mathcal{F}_{\text{mut}}|}}$
     \EndFor
     \State $\mathcal{P}_{\text{surv}} \leftarrow \operatorname{TopCandidates}(\mathcal{P}, \boldsymbol{\mathcal{J}}, \lfloor P/2 \rfloor)$
@@ -316,7 +316,7 @@ Evaluation Seed & 42 & Enforces deterministic, fully reproducible experimental r
     \State $\mathcal{P}_{\text{mut}} \leftarrow \operatorname{GaussianMutate}(\mathcal{P}_{\text{cross}}, \mathcal{F}_{\text{mut}}, \sigma = \varepsilon/3)$
     \State $\mathcal{P} \leftarrow \mathcal{P}_{\text{surv}} \cup \mathcal{P}_{\text{mut}}$
 \EndFor
-\State \Return $\perp$ \Comment{Optimization terminated without valid evasion}
+\State \Return $\mathbf{x}$
 \end{algorithmic}
 \end{algorithm}
 
@@ -415,7 +415,7 @@ LightGBM      & 99.20\% & 31.60\% & 67.60 pp & 93.85\% & 43.95\% & 49.90 pp & \t
   \label{fig:recall_drop}
 \end{figure*}
 
-The evasion numbers paint an alarming picture. Random Forest collapsed almost entirely: its recall plummeted from 99.40\% to 1.00\%, giving an attack success rate of 99.00\%. LightGBM proved somewhat sturdier but still conceded a 68.40\% ASR, retaining 31.60\% recall. XGBoost showed the strongest baseline resilience: it kept evasion to 56.00\% and preserved 44.00\% recall. Across all three ensembles, standard benchmark accuracy gave a misleading sense of security.
+The evasion results show that high benchmark accuracy can be deceptive. Random Forest broke down almost completely under attack: its recall plunged from 99.40\% to 1.00\%, giving a 99.00\% attack success rate. LightGBM held up somewhat better, though its evasion rate still climbed to 68.40\% (retaining 31.60\% recall). XGBoost showed the strongest baseline resilience: it kept evasion to 56.00\% and preserved 44.00\% recall. Across all three ensembles, standard benchmark accuracy gave a misleading sense of security.
 
 \subsection{Quantification of the Evasion Phase Transition}
 \label{sec:phase_transition}
@@ -437,7 +437,7 @@ To determine how evasion efficacy scales with perturbation budget, we conduct an
 2.72 & 2.40\%  & 19  & Robust Plateau Invariance Region \\
 3.38 & 2.40\%  & 19  & Robust Plateau Invariance Region \\
 4.03 & 2.40\%  & 19  & Critical Decision Boundary Approach \\
-\textbf{4.69} & \textbf{63.20\%} & \textbf{275} & \textbf{** NON-LINEAR PHASE TRANSITION THRESHOLD **} \\
+\textbf{4.69} & \textbf{63.20\%} & \textbf{275} & \textbf{Critical Phase Transition Boundary} \\
 5.34 & 84.80\% & 290 & Saturated Evasion Regime \\
 6.00 & 87.60\% & 295 & Asymptotic Vulnerability Ceiling \\
 \bottomrule
@@ -871,7 +871,7 @@ We acknowledge several operational constraints:
 
 Tree ensembles remain the practical standard for network flow inspection, but high clean accuracy conceals structural vulnerabilities to feature-constrained evasion. In this work, we probed Random Forest, XGBoost, LightGBM, and a deep MLP on 701,978 flow records from the CIC-IoT2023 dataset under semantically constrained evolutionary attacks.
 
-Four core insights emerge:
+Our findings lead to several clear conclusions:
 \begin{enumerate}
     \item Tree-based models display an abrupt, non-linear phase transition in evasion vulnerability at $\varepsilon \approx 4.69$, where XGBoost ASR jumps from 2.40\% to 63.20\% as perturbations cross primary split thresholds on packet counts.
     \item Deep Multi-Layer Perceptrons exhibit extreme adversarial brittleness, suffering 100.00\% ASR under identical constraints that XGBoost resists with a 43.00\% margin. This confirms that axis-aligned orthogonal boundaries offer distinct structural advantages over continuous neural manifolds on tabular data.
