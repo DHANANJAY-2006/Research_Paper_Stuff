@@ -1,7 +1,7 @@
 # Adversarial Robustness of Tree-Based Intrusion Detection Systems
 
 > **Paper Title:** *Adversarial Robustness of Tree-Based Intrusion Detection Systems Under Feature-Constrained Evasion Attacks*  
-> **Authors:** Dhananjay Kadge, Rupali Deshmukh  
+> **Authors:** Dhananjay Kadge, Prof. Rupali Deshmukh (Faculty Supervisor)  
 > **Affiliation:** Department of Computer Science and Engineering, School of Engineering and Technology, MGM University  
 > **Target Journal:** Elsevier *Computers & Security*  
 > **Dataset:** CIC-IoT2023 (701,978 flows, 39 features, 31 attack classes)
