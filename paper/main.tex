@@ -93,7 +93,7 @@ The remainder of this paper is organized as follows. Section~\ref{sec:related} e
 The intersection of machine learning, network intrusion detection, and adversarial vulnerability has stimulated intensive academic inquiry. This section contextualizes our contributions within this broader landscape.
 
 \subsection{Foundations of Adversarial Machine Learning}
-Szegedy et al.~\cite{szegedy2014intriguing} first demonstrated that tiny, imperceptible $\ell_p$ input perturbations can trick deep neural networks into high-confidence misclassifications. Goodfellow et al.~\cite{goodfellow2014explaining} traced this behavior to high-dimensional linearity, introducing the one-step Fast Gradient Sign Method (FGSM). Madry et al.~\cite{madry2018towards} framed defense as robust minimax optimization, establishing multi-step Projected Gradient Descent (PGD) as a standard first-order adversary. Carlini and Wagner~\cite{carlini2017evaluating} showed that many heuristic defenses merely mask gradients rather than providing genuine protection. Croce and Hein~\cite{croce2020reliable} introduced AutoAttack to benchmark models against parameter-free ensembles, underscoring the need to test defenses against diverse, adaptive adversaries.
+Adversarial vulnerabilities were first demonstrated by Szegedy et al.~\cite{szegedy2014intriguing}, who showed that minuscule $\ell_p$ input noise can misguide deep neural networks. Goodfellow et al.~\cite{goodfellow2014explaining} connected this fragility to high-dimensional linearity, proposing the one-step Fast Gradient Sign Method (FGSM). Madry et al.~\cite{madry2018towards} then framed defense around robust minimax optimization, using multi-step Projected Gradient Descent (PGD) as a benchmark adversary. Carlini and Wagner~\cite{carlini2017evaluating} cautioned that heuristic defenses often rely on gradient masking rather than actual robustness. Croce and Hein~\cite{croce2020reliable} later introduced AutoAttack, highlighting how parameter-free attack ensembles prevent overly optimistic defense claims.
 
 \subsection{Adversarial Vulnerabilities in Network Intrusion Detection}
 Translating adversarial ML concepts into cybersecurity has revealed fundamental domain divergences~\cite{corona2013adversarial}. Sommer and Paxson~\cite{sommer2010outside} articulated the foundational challenges of employing machine learning for intrusion detection, citing semantic gap issues, severe class imbalance, high false-positive costs, and non-stationary operational distributions. 
@@ -111,7 +111,7 @@ Given the non-differentiable nature of discrete networks and tree models, evolut
 \subsection{Adversarial Defenses and Subspace Smoothing}
 Adversarial defense mechanisms broadly fall into heuristic detection, certified robustness, and adversarial training~\cite{madry2018towards}. In certified robustness, Cohen et al.~\cite{cohen2019certified} established randomized smoothing, guaranteeing tight $\ell_2$-norm robustness boundaries for neural networks by injecting isotropic Gaussian noise into input vectors at inference time. However, randomized smoothing requires hundreds of Monte Carlo sampling evaluations per inference, introducing unacceptable latency overheads for line-rate enterprise packet inspection.
 
-Adversarial training remains the most effective empirical defense~\cite{madry2018towards}. Nevertheless, when applied to tree ensembles, standard adversarial data augmentation frequently induces severe utility degradation: decision trees tend to overfit and isolate synthetic adversarial points within dedicated hyper-rectangular leaf partitions, failing to synthesize a continuous robust boundary~\cite{tramer2020adaptive}. Synthetic minority oversampling techniques such as SMOTE~\cite{chawla2002smote} demonstrate the utility of subspace interpolation in class-imbalanced tabular data. Drawing inspiration from these paradigms, our proposed Gaussian Subspace Smoothing (GSS) mechanism applies stochastic perturbations exclusively within the mutable feature subspace during training, transforming discrete adversarial vectors into continuous density distributions and effectively preventing leaf memorization.
+Adversarial training remains the standard empirical defense~\cite{madry2018towards}. Nevertheless, when applied to tree ensembles, standard adversarial data augmentation frequently induces utility degradation: decision trees tend to overfit and isolate synthetic adversarial points within dedicated hyper-rectangular leaf partitions, failing to synthesize a continuous robust boundary~\cite{tramer2020adaptive}. Synthetic minority oversampling techniques such as SMOTE~\cite{chawla2002smote} demonstrate the utility of subspace interpolation in class-imbalanced tabular data. Drawing inspiration from these paradigms, our proposed Gaussian Subspace Smoothing (GSS) mechanism applies stochastic perturbations exclusively within the mutable feature subspace during training, transforming discrete adversarial vectors into continuous density distributions and effectively preventing leaf memorization.
 
 \subsection{Taxonomy and Summary of Related Work}
 To systematically position this investigation within the state of the art, Table~\ref{tab:related_work} compares representative literature against our study across six foundational dimensions: benchmark dataset, threat model, attack methodology, target model architectures, defensive framework, and observed utility preservation.
@@ -148,7 +148,7 @@ As detailed in Table~\ref{tab:related_work}, prior research has predominantly fo
 \label{sec:methodology}
 % ─────────────────────────────────────────────────────────────
 
-This section details the end-to-end experimental methodology, dataset properties, formal threat model, multi-objective evolutionary optimization attack, and the Gaussian Subspace Smoothing defense pipeline. Figure~\ref{fig:overview} presents the architectural overview of the full research pipeline.
+Evaluating evasion under realistic protocol constraints requires tying feature edits to physical network mechanics. Below, we formalize our dataset pipeline, threat model, evolutionary search algorithm, and the Gaussian Subspace Smoothing defense. Figure~\ref{fig:overview} presents the architectural overview of the full research pipeline.
 
 \begin{figure*}[htbp]
   \centering
@@ -159,13 +159,13 @@ This section details the end-to-end experimental methodology, dataset properties
 
 \subsection{Benchmark Dataset and Preprocessing}
 \label{sec:dataset}
-To evaluate detection resilience in modern, high-throughput network environments, we employ the CIC-IoT2023 dataset~\cite{neto2023ciciot2023}, curated by the Canadian Institute for Cybersecurity. CIC-IoT2023 represents an expansive benchmark capturing real-world network traffic generated across a topological testbed of 105 physical IoT devices (including smart cameras, home automation sensors, and embedded controllers) subjected to 33 distinct cyber-attack scenarios alongside benign operations.
+To evaluate detection resilience in modern, high-throughput network environments, we employ the CIC-IoT2023 dataset~\cite{neto2023ciciot2023}, curated by the Canadian Institute for Cybersecurity. CIC-IoT2023 captures real-world network traffic generated across a topological testbed of 105 physical IoT devices (including smart cameras, home automation sensors, and embedded controllers) subjected to 33 distinct cyber-attack scenarios alongside benign operations.
 
-The raw traffic capture comprises 40 statistical flow features extracted across forward and backward transmission directions. The dataset was parsed and ingested via high-performance chunked Parquet pipelines. Data cleaning and preprocessing adhered to a strict operational protocol:
+The raw traffic capture comprises 40 statistical flow features extracted across forward and backward transmission directions. The dataset was parsed and ingested via chunked Parquet pipelines. Data cleaning and preprocessing adhered to an operational protocol:
 \begin{enumerate}
-    \item \textbf{Infinite and Missing Value Sanitization:} Flow instances containing mathematical anomalies, non-finite representations, or missing attributes resulting from division-by-zero flow calculations (e.g., undefined packet inter-arrival variance on single-packet flows) were pruned.
-    \item \textbf{Target Encoding and Class Partitioning:} The full label taxonomy encompasses 31 verified malicious attack classes and benign traffic. To reflect operational SOC triage where detectors perform binary filtering before secondary classification, labels were mapped to binary ground truth ($y \in \{0, 1\}$, where $y=0$ denotes Benign and $y=1$ denotes Malicious). Concurrently, fine-grained multiclass identifiers were retained to facilitate per-class vulnerability dissection.
-    \item \textbf{Feature Dimension Pruning:} Constant metadata columns and invariant identifiers were eliminated, yielding an active feature space of $d=39$ statistical attributes.
+    \item \textbf{Sanitizing Invalids:} Flow instances containing non-finite representations or missing attributes resulting from division-by-zero flow calculations (e.g., undefined packet inter-arrival variance on single-packet flows) were pruned.
+    \item \textbf{Target Encoding and Partitioning:} The full label taxonomy encompasses 31 verified malicious attack classes and benign traffic. To reflect operational SOC triage where detectors perform binary filtering before secondary classification, labels were mapped to binary ground truth ($y \in \{0, 1\}$, where $y=0$ denotes Benign and $y=1$ denotes Malicious). Concurrently, fine-grained multiclass identifiers were retained to facilitate per-class vulnerability dissection.
+    \item \textbf{Pruning Invariants:} Constant metadata columns and invariant identifiers were eliminated, yielding an active feature space of $d=39$ statistical attributes.
     \item \textbf{Stratified Splitting and Normalization:} The dataset was partitioned into an 80\% training corpus ($N_{\text{train}} = 561,569$) and a 20\% held-out test evaluation corpus ($N_{\text{test}} = 140,393$) using stratified sampling on binary labels. Feature standardization was conducted using z-score normalization:
     \begin{equation}
         z_i = \frac{x_i - \mu_i}{\sigma_i}
@@ -197,7 +197,7 @@ Class Imbalance Ratio & 41.96 : 1 & 41.97 : 1 & 41.96 : 1 \\
 Adhering to standard adversarial security modeling frameworks~\cite{papernot2016transferability,carlini2017evaluating}, we define our threat model across four dimensions:
 
 \subsubsection{Adversary's Goal}
-The adversary seeks to orchestrate a \textit{targeted evasion attack}. Specifically, given a malicious network flow $\mathbf{x} \in \mathbb{R}^d$ with true label $y = 1$, the adversary aims to compute a bounded perturbation vector $\boldsymbol{\delta} \in \mathbb{R}^d$ such that the modified flow $\mathbf{x}_{\text{adv}} = \mathbf{x} + \boldsymbol{\delta}$ is misclassified by the deployed IDS as benign:
+The adversary seeks to orchestrate a targeted evasion attack. Specifically, given a malicious network flow $\mathbf{x} \in \mathbb{R}^d$ with true label $y = 1$, the adversary aims to compute a bounded perturbation vector $\boldsymbol{\delta} \in \mathbb{R}^d$ such that the modified flow $\mathbf{x}_{\text{adv}} = \mathbf{x} + \boldsymbol{\delta}$ is misclassified by the deployed IDS as benign:
 \begin{equation}
     f_\theta(\mathbf{x} + \boldsymbol{\delta}) = 0
 \end{equation}
@@ -206,12 +206,12 @@ where $f_\theta: \mathbb{R}^d \rightarrow \{0, 1\}$ denotes the trained classifi
 \subsubsection{Adversary's Knowledge}
 We evaluate two distinct operational settings:
 \begin{itemize}
-    \item \textbf{White-Box Setting (Worst-Case Upper Bound):} The adversary possesses complete knowledge of the deployed detector, including model architecture, learned parameters, decision tree split structures, feature scaling parameters ($\boldsymbol{\mu}, \boldsymbol{\sigma}$), and the classification decision threshold ($\tau = 0.5$). This setting establishes a rigorous theoretical upper bound on defensive vulnerability.
+    \item \textbf{White-Box Setting (Upper Bound):} The adversary possesses complete knowledge of the deployed detector, including model architecture, learned parameters, decision tree split structures, feature scaling parameters ($\boldsymbol{\mu}, \boldsymbol{\sigma}$), and the classification decision threshold ($\tau = 0.5$). This setting establishes a rigorous theoretical upper bound on defensive vulnerability.
     \item \textbf{Black-Box Setting (Transferability):} The adversary has no direct access to the target model's internal parameters or architecture. The adversary crafts adversarial examples against a surrogate model (e.g., XGBoost) and deploys them blindly against distinct victim architectures (e.g., Random Forest or MLP).
 \end{itemize}
 
 \subsubsection{Adversary's Capabilities and Constraints}
-Unlike unconstrained threat models that assume omnipotent manipulation of input vectors, we enforce strict domain-specific problem-space constraints:
+Unlike unconstrained threat models that assume omnipotent manipulation of input vectors, we enforce domain-specific problem-space constraints:
 \begin{enumerate}
     \item \textbf{Discrete Flag Invariance:} The adversary cannot alter discrete, categorical, or protocol-mandated fields (e.g., TCP SYN/FIN/RST flags, protocol IDs, port numbers). Altering these fields would disrupt socket establishment, cause transport resets, or violate basic protocol compliance~\cite{apruzzese2022modeling}.
     \item \textbf{Mutable Feature Restriction:} Perturbations are strictly constrained to a verified mutable continuous feature subspace $\mathcal{F}_{\text{mut}} \subset \{1, \dots, d\}$. For all invariant features $j \notin \mathcal{F}_{\text{mut}}$, we strictly enforce $\delta_j = 0$.
@@ -228,13 +228,13 @@ Formally, the admissible adversarial perturbation space $\mathcal{A}_\varepsilon
 
 \subsection{Identification of the Mutable Feature Subspace via SHAP Attribution}
 \label{sec:shap}
-To systematically establish the mutable feature set $\mathcal{F}_{\text{mut}}$, we integrate feature variance filtering with Shapley Additive exPlanations (SHAP)~\cite{lundberg2017shap}. First, to eliminate discrete and low-cardinality attributes, we isolate continuous statistical features exhibiting greater than 15 unique values across the test corpus. Second, we execute TreeSHAP on a 1,000-sample representative background partition of the baseline XGBoost classifier.
+To establish the mutable feature set $\mathcal{F}_{\text{mut}}$, we integrate feature variance filtering with Shapley Additive exPlanations (SHAP)~\cite{lundberg2017shap}. First, to eliminate discrete and low-cardinality attributes, we isolate continuous statistical features exhibiting greater than 15 unique values across the test corpus. Second, we execute TreeSHAP on a 1,000-sample representative background partition of the baseline XGBoost classifier.
 
-Figure~\ref{fig:shap} presents the publication-grade SHAP beeswarm attribution plot. The analysis reveals an extraordinary architectural vulnerability: the single feature \texttt{Number} (packet count per flow) accounts for \textbf{92.25\%} of the total model feature importance. The remaining 7.75\% of decision weight is distributed across secondary flow statistics.
+Figure~\ref{fig:shap} presents the SHAP beeswarm attribution plot. The analysis reveals an extraordinary architectural vulnerability: the single feature \texttt{Number} (packet count per flow) accounts for \textbf{92.25\%} of the total model feature importance. The remaining 7.75\% of decision weight is distributed across secondary flow statistics.
 
-This extreme single-feature concentration stems directly from the underlying network traffic dynamics of IoT intrusion datasets. In high-volume volumetric attacks (e.g., UDP floods, SYN floods, and Mirai propagation), malicious flows generate thousands of packets within brief measurement windows. In contrast, benign IoT background traffic (e.g., periodic MQTT telemetry, DNS queries, and NTP synchronizations) typically comprises brief transactions with small packet counts ($N_{\text{pkt}} \in [2, 10]$). Standard decision tree splitting algorithms (such as XGBoost's exact greedy split finder or histogram binning) maximize information gain by repeatedly placing root and primary branch splits on \texttt{Number}, achieving immediate class purity with minimal tree depth. 
+This single-feature concentration stems directly from the underlying network traffic dynamics of IoT intrusion datasets. In high-volume volumetric attacks (e.g., UDP floods, SYN floods, and Mirai propagation), malicious flows generate thousands of packets within brief measurement windows. In contrast, benign IoT background traffic (e.g., periodic MQTT telemetry, DNS queries, and NTP synchronizations) typically comprises brief transactions with small packet counts ($N_{\text{pkt}} \in [2, 10]$). Standard decision tree splitting algorithms (such as XGBoost's exact greedy split finder or histogram binning) maximize information gain by repeatedly placing root and primary branch splits on \texttt{Number}, achieving immediate class purity with minimal tree depth. 
 
-However, from an adversarial perspective, this heavy reliance introduces an acute inductive fragility: an adversary does not need to solve a complex high-dimensional inverse problem to evade detection. Instead, perturbing or pacing traffic to reduce flow packet counts directly navigates the model's primary decision barrier. Based on this attribution ranking, we designate the top 15 continuous features as $\mathcal{F}_{\text{mut}}$, with the primary mutable dimensions being: \textit{Duration}, \textit{Tot size of bckwd packet}, \textit{Tot size of fwd packet}, \textit{Fwd Packet Length Max}, \textit{Bckwd Packet Length Max}, \textit{Flow IAT Mean}, and \textit{Bckwd IAT Mean}. In real-world packet transmission, these features correspond directly to packet padding, jitter injection, and transmission pacing---modifications that can be implemented in software without compromising application-layer payload delivery.
+From an adversarial perspective, however, this heavy reliance introduces an acute inductive fragility: an adversary does not need to solve a complex high-dimensional inverse problem to evade detection. Instead, perturbing or pacing traffic to reduce flow packet counts directly navigates the model's primary decision barrier. Based on this attribution ranking, we designate the top 15 continuous features as $\mathcal{F}_{\text{mut}}$, with the primary mutable dimensions being: \textit{Duration}, \textit{Tot size of bckwd packet}, \textit{Tot size of fwd packet}, \textit{Fwd Packet Length Max}, \textit{Bckwd Packet Length Max}, \textit{Flow IAT Mean}, and \textit{Bckwd IAT Mean}. In real-world packet transmission, these features correspond directly to packet padding, jitter injection, and transmission pacing---modifications that can be implemented in software without compromising application-layer payload delivery.
 
 \begin{figure*}[htbp]
   \centering
@@ -423,7 +423,7 @@ LightGBM      & 99.20\% & 31.60\% & 67.60 pp & 93.85\% & 43.95\% & 49.90 pp & \t
   \label{fig:recall_drop}
 \end{figure*}
 
-The experimental results expose acute structural vulnerabilities across all models. Random Forest experiences severe sensitivity: its detection recall drops from 99.40\% down to 1.00\% (a 98.40 percentage-point decrease), corresponding to an ASR of 99.00\%. LightGBM suffers an ASR of 68.40\%, with recall dropping to 31.60\%. XGBoost exhibits the highest intrinsic resistance, restricting ASR to 56.00\% and preserving 44.00\% adversarial recall.
+The evasion numbers paint an alarming picture. Random Forest collapsed almost entirely: its recall plummeted from 99.40\% to 1.00\%, giving an attack success rate of 99.00\%. LightGBM proved somewhat sturdier but still conceded a 68.40\% ASR, retaining 31.60\% recall. XGBoost showed the strongest baseline resilience, holding evasion to 56.00\% and preserving 44.00\% recall. Across all three ensembles, standard benchmark accuracy gave a misleading sense of security.
 
 \subsection{Quantification of the Evasion Phase Transition}
 \label{sec:phase_transition}
@@ -459,15 +459,13 @@ To determine how evasion efficacy scales with perturbation budget, we conduct an
   \label{fig:epsilon}
 \end{figure}
 
-The empirical trajectory reveals a pronounced non-linear phenomenon: between $\varepsilon = 0.10$ and $\varepsilon = 4.03$, XGBoost exhibits robust invariance, with ASR remaining flat at $\le 2.40\%$. However, upon reaching the critical threshold of $\varepsilon \approx 4.69$, the model exhibits a sharp phase transition, with ASR surging abruptly to 63.20\% (a $26.3\times$ increase). Beyond $\varepsilon = 5.34$, evasion saturates asymptotically toward 87.60\%. 
+The perturbation sweep reveals an abrupt step-change in evasion rather than a gradual decline. Through $\varepsilon = 0.10$ up to $4.03$, XGBoost barely flinches: evasion stays flat below $2.40\%$. But at $\varepsilon \approx 4.69$, evasion explodes to $63.20\%$---a $26$-fold jump in a narrow perturbation window. Past $\varepsilon = 5.34$, the attack reaches an asymptotic ceiling near $87.60\%$.
 
-This phase transition is rooted directly in the geometric properties of decision tree splits under standardized feature scaling. Formally, let $z_{\text{Number}} = (x - \mu) / \sigma$ denote the z-score standardized value of the dominant \texttt{Number} feature. Across the training distribution, malicious flows in volumetric categories exhibit a high mean packet count ($z_{\text{atk}} \approx +4.85$), whereas benign IoT telemetry is centered at small packet counts ($z_{\text{ben}} \approx -0.12$). Inspection of the trained XGBoost ensemble reveals that the root and primary depth-1 decision thresholds on \texttt{Number} are placed at $z_{\text{split}} \approx +0.16$ to cleanly separate the two classes.
-
-The minimal continuous perturbation required for a malicious sample to traverse this primary split barrier is:
+This sharp transition is a natural byproduct of axis-aligned decision trees on standardized features. In the normalized feature space, volumetric attack traffic averages a packet count of $z_{\text{atk}} \approx +4.85$, whereas benign background traffic sits near $z_{\text{ben}} \approx -0.12$. To separate the two, XGBoost places its root and shallow split thresholds on \texttt{Number} around $z_{\text{split}} \approx +0.16$. A malicious sample must bridge a gap of:
 \begin{equation}
     \Delta z = z_{\text{atk}} - z_{\text{split}} \approx 4.85 - 0.16 = 4.69
 \end{equation}
-Because tree ensembles evaluate predictions via piecewise-constant step functions, any perturbation budget $\varepsilon < 4.69$ fails to push the feature coordinate past $z_{\text{split}}$. Within this sub-threshold regime, perturbations simply traverse flat interior leaf regions with zero effect on the ensemble vote (ASR $\le 2.40\%$). The instant the perturbation budget reaches $\varepsilon = 4.69$, the upper bound of the admissible set $\mathcal{A}_\varepsilon$ coincides exactly with the split boundary $z_{\text{split}}$. As a consequence, hundreds of test flows cross the partition threshold simultaneously, triggering an immediate classification cascade across the majority of estimators and driving ASR abruptly to 63.20\%. This empirically confirms that adversarial vulnerability in gradient boosted trees is governed by threshold-crossing phase transitions rather than continuous margin decay.
+to cross to the benign side. Because trees assign constant values within each hyper-rectangular leaf, any perturbation smaller than $4.69$ leaves the flow in the same leaf partition, changing nothing in the ensemble vote. The moment the budget touches $4.69$, hundreds of malicious flows breach the threshold simultaneously, flipping the majority vote and causing the sudden spike in evasion. This confirms that tree ensemble robustness is governed by threshold phase transitions rather than continuous margin degradation.
 
 \subsection{Cross-Model Transferability and the Random Forest Security Paradox}
 To examine black-box evasion, we evaluate the transferability of adversarial examples crafted against an XGBoost surrogate when deployed against victim RF and LightGBM models (Figure~\ref{fig:transferability}).
@@ -483,15 +481,15 @@ The transfer matrix reveals an asymmetric security profile between white-box and
 
 \textbf{Empirical Finding 1 (Random Forest Transfer Disparity):} \textit{Random Forest exhibits strong resistance against black-box transfer attacks (achieving only 2.00\% ASR when evaluated against an XGBoost surrogate), yet reaches 99.00\% ASR under direct white-box optimization. Conversely, XGBoost exhibits moderate vulnerability under direct attack (56.00\% ASR) while generating transferable adversarial vectors that fool LightGBM.}
 
-This paradox is explained by the fundamental divergence in ensemble construction: bagging versus gradient boosting:
+Comparing white-box queries against black-box transfer exposes an apparent contradiction:
 \begin{itemize}
-    \item \textbf{Gradient Boosting (XGBoost):} Trees are trained sequentially to minimize the pseudo-residuals of preceding iterations along the negative gradient of the loss function $\nabla_{f_{t-1}} \mathcal{L}$. Consequently, the split boundaries across individual boosted estimators are aligned along shared gradient trajectories. When an adversary crafts perturbations against XGBoost, the resulting evasion directions align with the shared loss landscape, transferring effectively to other boosted architectures like LightGBM.
-    \item \textbf{Bootstrap Aggregation (Random Forest):} Trees are trained in parallel on independent bootstrap resamples of data, with each split considering a random feature subspace of size $\sqrt{d}$. This dual stochasticity produces highly decorrelated, high-variance decision boundaries oriented across disparate orthogonal subspaces. In a black-box setting, surrogate transfer vectors crafted on XGBoost encounter decorrelated, unaligned orthogonal splits in Random Forest that fail to flip a majority of the 100 trees, producing a low 2.00\% transfer ASR.
-    \item \textbf{White-Box Susceptibility:} When the GA is granted direct white-box query access to Random Forest, it optimizes directly against the ensemble average:
+    \item \textbf{Gradient Boosting (XGBoost):} Gradient boosting trains trees sequentially along negative loss gradients. Because each tree corrects the errors of earlier estimators, split boundaries align along shared gradient directions. Adversarial steps crafted on XGBoost naturally match this directional bias and transfer readily to LightGBM.
+    \item \textbf{Bootstrap Aggregation (Random Forest):} Random Forest, by contrast, relies on bagging. It trains independent trees on bootstrap subsamples while choosing splits from random feature subsets ($\sqrt{d}$). The resulting decision surfaces are decorrelated and scattered across different subspaces. An adversarial trajectory tuned to XGBoost's loss landscape misses these disjoint splits, explaining why surrogate transfer stalls at 2.00\%.
+    \item \textbf{White-Box Susceptibility:} Under direct white-box access, however, the genetic algorithm optimizes against the unweighted ensemble vote:
     \begin{equation}
         P_{\text{RF}}(y=1 \mid \mathbf{x}) = \frac{1}{T} \sum_{t=1}^T h_t(\mathbf{x})
     \end{equation}
-    Because individual trees in RF are unweighted and un-regularized by a shrinkage learning rate $\eta$, individual leaf outputs are discrete $\{0, 1\}$. The unweighted ensemble margin near decision boundaries is shallow, allowing the multi-objective GA to discover simultaneous multi-feature perturbations that tip the majority threshold past 50\% across 99.00\% of malicious flows.
+    Because Random Forest averages hard binary votes without shrinkage ($\eta$), the collective margin near the boundary is thin. The optimizer easily discovers multi-feature combinations that flip enough individual trees to reverse the overall majority vote across 99.00\% of flows.
 \end{itemize}
 Thus, Random Forest's black-box resilience is an artifact of architectural obscurity rather than true intrinsic adversarial robustness.
 
@@ -559,13 +557,13 @@ Deep MLP (Neural) & 99.02\% & 89.38\% & 0.9969 & 0.9722 (Youden)  & 98.00\% & 0.
   \label{fig:crossattack}
 \end{figure*}
 
-Under benign testing, both models exhibit high detection performance, with an accuracy difference of less than 0.23\% (99.25\% vs. 99.02\%) and ROC-AUC scores exceeding 0.9969 (Table~\ref{tab:crossarch}). Both architectures effectively separate high-dimensional tabular IoT traffic under unperturbed conditions.
+On clean traffic, the deep neural network and the tree models perform almost indistinguishably: XGBoost reaches 99.25\% accuracy and 0.9981 ROC-AUC, while the MLP scores 99.02\% accuracy and 0.9969 ROC-AUC. In clean conditions, both architectures separate network flows cleanly (Table~\ref{tab:crossarch}).
 
-However, under adversarial attack, the architectures diverge sharply: Deep MLP suffers \textbf{100.00\% ASR} (complete evasion across all 500 test samples), with detection recall dropping to 0.00\%. In contrast, XGBoost restricts ASR to 57.00\%, maintaining 44.00\% adversarial recall.
+Under adversarial search, however, the two paradigms diverge completely. The MLP folded across all 500 evaluation flows (100.00\% ASR, zero retained recall). XGBoost, under the identical budget and mutable feature set, held evasion to 57.00\% and kept 44.00\% recall.
 
 \textbf{Empirical Finding 2 (Architectural Brittleness of Neural Tabular Classifiers):} \textit{Despite equivalent clean classification performance, continuous neural decision surfaces (MLP) are categorically more brittle to feature-constrained adversarial evasion than orthogonal tree ensembles (XGBoost), suffering 100.00\% ASR under the same operational constraints that XGBoost resists with a 43.00\% margin.}
 
-This vulnerability gap stems from the geometric distinction between the decision boundaries constructed by deep neural networks versus decision tree ensembles:
+The explanation lies in decision surface geometry:
 \begin{itemize}
     \item \textbf{Continuous Neural Manifolds:} The MLP models classification probabilities via nested compositions of affine transformations and non-linear activation functions:
     \begin{align}
@@ -577,16 +575,16 @@ This vulnerability gap stems from the geometric distinction between the decision
     \begin{equation}
         \frac{\partial p_\theta(\mathbf{x})}{\partial x_i} \neq 0, \quad \text{almost everywhere}
     \end{equation}
-    Even though the adversary utilizes a zeroth-order genetic search rather than backpropagation, the continuous gradient provides consistent directional selection: candidates making fractional progress toward the classification boundary achieve superior fitness scores, enabling the GA population to navigate directly into the benign decision region (100.00\% ASR).
-    \item \textbf{Piecewise-Constant Orthogonal Partitions:} Conversely, XGBoost partitions the 39-dimensional feature space into a collection of axis-aligned hyper-rectangular cells:
+    Even though our genetic algorithm does not compute analytical gradients, this continuous surface gives consistent feedback: every fractional step toward the decision boundary improves candidate fitness. The population converges smoothly toward the benign region until all samples evade (100.00\% ASR).
+    \item \textbf{Piecewise-Constant Orthogonal Partitions:} Decision trees behave differently. They slice space into orthogonal, axis-aligned boxes where prediction values are piecewise constant:
     \begin{equation}
         f_{\text{XGB}}(\mathbf{x}) = \sum_{k=1}^K f_k(\mathbf{x}), \quad f_k(\mathbf{x}) = w_{q(\mathbf{x})}
     \end{equation}
-    where $q: \mathbb{R}^d \rightarrow \{1, \dots, T\}$ maps an input vector to an individual leaf index with constant leaf weight $w$. Within the interior of any cell, the predicted output probability is strictly constant. Consequently, the partial derivatives are identically zero:
+    where $q: \mathbb{R}^d \rightarrow \{1, \dots, T\}$ maps an input vector to an individual leaf index with constant leaf weight $w$. Within any leaf box, the loss gradient is flat:
     \begin{equation}
         \nabla_{\mathbf{x}} f_{\text{XGB}}(\mathbf{x}) = \mathbf{0}, \quad \text{within cell interiors}
     \end{equation}
-    Perturbing a feature along any axis produces zero fitness improvement until the perturbation magnitude physically crosses an exact split boundary. As a result, the GA receives no continuous gradient feedback within cells, retarding evolutionary progress and preserving 44.00\% detection recall.
+    The genetic algorithm gets no directional clues until a perturbation physically steps across a split plane. This geometric friction slows evolutionary search substantially, allowing XGBoost to retain 44.00\% recall where the neural net broke down entirely.
 \end{itemize}
 
 This divergence is further clarified by examining epsilon sensitivity (Figure~\ref{fig:crossepsilon}), confidence degradation curves (Figure~\ref{fig:confdeg}), and per-class comparative heatmaps (Figure~\ref{fig:perclass_arch}).
@@ -626,9 +624,10 @@ Standard adversarial training seeks to solve the robust empirical risk minimizat
 \begin{equation}
     \min_\theta \mathbb{E}_{(\mathbf{x}, y) \sim \mathcal{D}} \left[ \max_{\boldsymbol{\delta} \in \mathcal{A}_\varepsilon} \mathcal{L}(f_\theta(\mathbf{x} + \boldsymbol{\delta}), y) \right]
 \end{equation}
-In tabular network intrusion detection, directly solving this minimax problem for non-differentiable decision tree ensembles induces severe leaf memorization: synthetic adversarial points generated by heuristic optimizers are partitioned into narrow, high-variance hyper-rectangular leaves that fail to generalize to fresh attacks while degrading clean classification margins~\cite{tramer2020adaptive}.
 
-To overcome this fundamental limitation, Gaussian Subspace Smoothing constructs a stochastic density envelope around each training instance strictly restricted to the mutable feature subspace $\mathcal{F}_{\text{mut}}$. Let $\mathbf{P} \in \mathbb{R}^{d \times d}$ denote the diagonal projection matrix onto the mutable subspace:
+Why does naive adversarial training fail on tree ensembles? Decision trees draw hard orthogonal boundaries around training points. When discrete adversarial vectors are added to the training set, the tree learner builds deep, narrow leaf branches around those specific coordinates. It memorises the adversarial points without shifting the surrounding decision boundary, bloating tree depth and hurting clean recall~\cite{tramer2020adaptive}.
+
+Gaussian Subspace Smoothing fixes this by thickening adversarial samples into continuous density clouds during retraining. Let $\mathbf{P} \in \mathbb{R}^{d \times d}$ denote the diagonal projection matrix onto the mutable subspace:
 \begin{equation}
     P_{jj} = \begin{cases} 1 & \text{if } j \in \mathcal{F}_{\text{mut}} \\ 0 & \text{if } j \notin \mathcal{F}_{\text{mut}} \end{cases}
 \end{equation}
@@ -810,10 +809,10 @@ The attribution data reveals the mechanism behind GSS robustness: in the baselin
 \subsection{Operational Security Implications for SOC Deployments}
 Our empirical findings carry direct, actionable guidance for enterprise and IoT security operations:
 \begin{enumerate}
-    \item \textbf{Avoid Undefended Deep Neural Models on Tabular Flow Data:} Despite achieving clean benchmark accuracies comparable to tree models, deep MLPs exhibit severe adversarial fragility (100.00\% ASR). For high-assurance network traffic inspection, deep neural classifiers should not be deployed without robust verification.
+    \item \textbf{Avoid Undefended Deep Neural Models on Tabular Flow Data:} Despite matching tree models on clean benchmark data, the deep MLP collapsed completely under constrained search (100.00\% ASR). Without formal verification or dedicated tabular smoothing, deep tabular neural classifiers present severe operational risk.
     \item \textbf{Deploy Adversarially Trained XGBoost with Subspace Smoothing:} AT-XGBoost with 20\% GSS augmentation establishes the current state of the art in robust tabular NIDS, suppressing ASR to 1.33\% with zero penalty on clean detection recall.
-    \item \textbf{Account for the Random Forest Security Paradox:} While Random Forest provides effective black-box obscurity against casual adversaries, it offers virtually no protection against targeted white-box optimization (99.00\% ASR). System security must not rely on architectural obscurity.
-    \item \textbf{Implement Layered Triage for Application-Layer Attacks:} Because low-volume attacks (e.g., XSS, Command Injection) exhibit residual vulnerability even under hardened flow classifiers, flow-level NIDS should be paired with host-level agent logging and application-layer WAF/DPI inspection.
+    \item \textbf{Account for the Random Forest Security Paradox:} Do not mistake bagging for intrinsic robustness. Random Forest resisted surrogate transfers (2.00\% ASR) purely because its split angles were decorrelated from XGBoost, not because its boundaries were sturdy. Direct query access breached it easily (99.00\% ASR).
+    \item \textbf{Implement Layered Triage for Application-Layer Attacks:} While volumetric floods (DDoS, SYN/UDP floods) became virtually impenetrable after defense (0.00\% residual evasion), application-layer threats like XSS and Command Injection still saw high evasion ($>85\%$). Because these attacks generate small payloads that naturally resemble normal HTTP traffic, statistical flow features alone cannot reliably isolate them. Flow detectors must be paired with application-layer WAFs and deep packet inspection.
 \end{enumerate}
 
 \subsection{Threat-Informed SOC Deployment Matrix}
@@ -878,9 +877,9 @@ We acknowledge several operational constraints:
 \label{sec:conclusion}
 % ─────────────────────────────────────────────────────────────
 
-This paper presented an adversarial robustness evaluation of tree-based and neural network intrusion detection systems under feature-constrained evasion attacks. Utilizing the CIC-IoT2023 benchmark, we formulated a multi-objective Genetic Algorithm that restricts perturbations to valid continuous flow features, preserving network protocol constraints. 
+Tree ensembles remain the practical standard for network flow inspection, but high clean accuracy conceals structural vulnerabilities to feature-constrained evasion. In this work, we probed Random Forest, XGBoost, LightGBM, and a deep MLP on 701,978 flow records from the CIC-IoT2023 dataset under semantically constrained evolutionary attacks.
 
-Our investigation yielded four principal findings:
+Four core insights emerge:
 \begin{enumerate}
     \item Tree-based models display an abrupt, non-linear phase transition in evasion vulnerability at $\varepsilon \approx 4.69$, where XGBoost ASR jumps from 2.40\% to 63.20\% as perturbations cross primary split thresholds on packet counts.
     \item Deep Multi-Layer Perceptrons exhibit extreme adversarial brittleness, suffering 100.00\% ASR under identical constraints that XGBoost resists with a 43.00\% margin, confirming the defensive value of axis-aligned orthogonal boundaries over continuous neural manifolds for tabular data.
@@ -888,7 +887,7 @@ Our investigation yielded four principal findings:
     \item Adversarial training augmented with Gaussian Subspace Smoothing (GSS) resolves the historical conflict between robustness and utility in tree ensembles, suppressing XGBoost ASR from 41.67\% to 1.33\% while preserving 99.33\% clean detection recall.
 \end{enumerate}
 
-Future research will extend this work across four vectors: (1) developing raw packet-level generators using Scapy/DPDK to validate flow-feature perturbations on live physical testbeds; (2) investigating online adaptive defenses capable of dynamic threshold tuning against streaming concept drift; (3) evaluating adversarial robustness in federated edge-cloud NIDS topologies; and (4) exploring certified robustness bounds for tree ensembles using randomized subspace smoothing at inference time.
+Looking forward, we see four promising directions: testing packet-level perturbations directly in live hardware testbeds via DPDK, developing dynamic thresholding against streaming concept drift, exploring robustness in federated IoT deployments, and establishing certified robustness guarantees for tree ensembles through inference-time subspace smoothing.
 
 % ─────────────────────────────────────────────────────────────
 \section*{CRediT Authorship Contribution Statement}
