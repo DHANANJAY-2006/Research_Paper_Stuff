@@ -65,7 +65,7 @@ While adversarial machine learning originated predominantly in computer vision, 
 
 Evaluating tree ensembles under adversarial conditions introduces a distinct computational challenge: non-differentiability. Because decision trees partition input space into orthogonal hyper-rectangles using step functions, their loss gradients with respect to input features are zero almost everywhere~\cite{kantchelian2016evasion,chen2019robust}. Gradient-based optimization techniques cannot navigate these piecewise-constant surfaces directly. Evaluating tree models under semantically constrained conditions requires zeroth-order optimization methods that can explore discrete and constrained search spaces without gradient information. Multi-objective evolutionary algorithms provide a suitable mathematical formulation for this objective~\cite{deb2002nsga,alhajjar2021adversarial}.
 
-Prior literature exhibits notable limitations in evaluating tree-based intrusion detection under realistic networking constraints. Many existing studies permit invalid feature manipulations, yielding inflated evasion metrics that cannot translate to operational networks. Furthermore, most evaluations examine models in isolation, precluding direct comparisons between tree ensembles and deep neural networks on identical datasets. Finally, hardening tree models through adversarial retraining remains difficult: standard data augmentation prompts decision trees to construct deep, isolated leaf partitions around synthetic attack vectors, degrading clean classification utility without establishing robust decision boundaries~\cite{tramer2020adaptive}.
+Prior literature on tree-based intrusion detection under realistic networking constraints carries three consistent gaps. First, many studies permit invalid feature manipulations, yielding inflated evasion rates that do not translate to operational networks where middleboxes enforce protocol syntax. Second, evaluations typically examine architectures in isolation, precluding direct comparison between tree ensembles and deep neural networks under identical attack conditions. Third, hardening tree models through adversarial retraining remains difficult: standard data augmentation causes decision trees to construct deep, narrow leaf partitions around individual attack coordinates, degrading clean classification utility without establishing genuinely robust decision boundaries~\cite{tramer2020adaptive}.
 
 In this paper, we address these challenges through an empirical investigation framed around three research questions:
 \begin{enumerate}
@@ -90,7 +90,7 @@ The remainder of this paper is structured as follows: Section~\ref{sec:related} 
 \label{sec:related}
 % ─────────────────────────────────────────────────────────────
 
-Adversarial attacks on machine learning originated in computer vision, but bringing those concepts into network security introduces unique engineering challenges. This section reviews the literature on adversarial intrusion detection, non-differentiable tree ensembles, and heuristic search.
+Adversarial machine learning originated in computer vision, yet applying its principles to network intrusion detection introduces distinct engineering constraints absent from image-domain research. This section surveys the literature on adversarial intrusion detection, non-differentiable tree ensembles, and heuristic optimization, and positions our work within that context.
 
 \subsection{Foundations of Adversarial Machine Learning}
 Adversarial machine learning began with Szegedy et al.~\cite{szegedy2014intriguing}, who showed that adding imperceptible noise to images could mislead deep neural networks into confident misclassifications. Goodfellow et al.~\cite{goodfellow2014explaining} explained this using high-dimensional linearity and introduced the one-step FGSM attack. Madry et al.~\cite{madry2018towards} later formalized adversarial defense as a minimax game and established multi-step PGD as the standard first-order benchmark. Carlini and Wagner~\cite{carlini2017evaluating} cautioned that many proposed defenses merely masked gradients rather than securing models, while Croce and Hein~\cite{croce2020reliable} developed AutoAttack to prevent selective evaluation reporting.
@@ -375,7 +375,7 @@ LightGBM      & 99.24\% & 99.61\% & 99.61\% & 99.62\% & 99.20\% & 0.9980 & \text
   \label{fig:baseline}
 \end{figure*}
 
-As shown in Table~\ref{tab:phase1_baseline} and Figure~\ref{fig:baseline}, all three tree-based classifiers achieve exceptional discrimination under benign operational conditions, with accuracies exceeding 99.22\% and ROC-AUC scores surpassing 0.9980. XGBoost delivers the highest overall F1 performance (99.62\%) with an efficient training latency of 3.41 seconds. LightGBM demonstrates the highest computational throughput, converging in 1.99 seconds ($5.1\times$ faster than Random Forest) while forfeiting only 0.01\% accuracy. 
+Table~\ref{tab:phase1_baseline} and Figure~\ref{fig:baseline} confirm that all three tree-based classifiers sustain high separation under unperturbed operational conditions, with accuracies exceeding 99.22\% and ROC-AUC values above 0.9980. XGBoost achieves the highest weighted F1 (99.62\%) and trains in 3.41 seconds. LightGBM converges in 1.99 seconds ($5.1\times$ faster than Random Forest) while sacrificing only 0.01\% accuracy, making it the most computationally efficient option. 
 
 However, as highlighted by our SHAP attribution analysis (Section~\ref{sec:shap}, Figure~\ref{fig:shap}), this strong clean performance is heavily contingent upon the \texttt{Number} flow feature. In conventional evaluations, this single-feature reliance remains undetected because clean test traffic consistently mirrors training distributions. In Phase 2, we test whether this performance persists under adversarial conditions.
 
@@ -411,7 +411,7 @@ LightGBM      & 99.20\% & 31.60\% & 67.60 pp & 93.85\% & 43.95\% & 49.90 pp & \t
   \label{fig:recall_drop}
 \end{figure*}
 
-The evasion results show that high benchmark accuracy can be deceptive. Random Forest broke down almost completely under attack: its recall plunged from 99.40\% to 1.00\%, giving a 99.00\% attack success rate. LightGBM held up somewhat better, though its evasion rate still climbed to 68.40\% (retaining 31.60\% recall). XGBoost showed the strongest baseline resilience: it kept evasion to 56.00\% and preserved 44.00\% recall. Across all three ensembles, standard benchmark accuracy gave a misleading sense of security.
+The evasion measurements expose a fundamental gap between benchmark performance and operational robustness. Random Forest suffered near-total detection collapse: recall dropped from 99.40\% to 1.00\%, yielding a 99.00\% attack success rate. LightGBM retained greater partial resistance, though evasion still reached 68.40\% (31.60\% adversarial recall). XGBoost demonstrated the strongest relative resilience among the three, limiting evasion to 56.00\% and preserving 44.00\% recall. Taken together, these results confirm that clean benchmark accuracy is an unreliable proxy for adversarial robustness in operational NIDS.
 
 \subsection{Quantification of the Evasion Phase Transition}
 \label{sec:phase_transition}
@@ -545,9 +545,9 @@ Deep MLP (Neural) & 99.02\% & 89.38\% & 0.9969 & 0.9722 (Youden)  & 98.00\% & 0.
   \label{fig:crossattack}
 \end{figure*}
 
-On clean traffic, the deep neural network and the tree models perform almost indistinguishably: XGBoost reaches 99.25\% accuracy and 0.9981 ROC-AUC, while the MLP scores 99.02\% accuracy and 0.9969 ROC-AUC. In clean conditions, both architectures separate network flows cleanly (Table~\ref{tab:crossarch}).
+Under unperturbed conditions, both architectures achieve comparable discrimination: XGBoost reaches 99.25\% accuracy with a 0.9981 ROC-AUC, while the MLP attains 99.02\% accuracy and a 0.9969 ROC-AUC (Table~\ref{tab:crossarch}). The two classifiers are effectively indistinguishable on standard held-out test data.
 
-Under adversarial search, however, the two paradigms diverge completely. The MLP folded across all 500 evaluation flows (100.00\% ASR, zero retained recall). XGBoost, under the identical budget and mutable feature set, held evasion to 57.00\% and kept 44.00\% recall.
+Under feature-constrained evolutionary search, however, the two paradigms diverge substantially. The MLP experienced complete classification failure across all 500 evaluation flows (100.00\% ASR, zero retained recall). XGBoost, operating under the identical perturbation budget and mutable feature set, confined evasion to 57.00\% and retained 44.00\% adversarial detection recall.
 
 \textbf{Empirical Finding 2 (Architectural Brittleness of Neural Tabular Classifiers):} \textit{Despite equivalent clean classification performance, continuous neural decision surfaces (MLP) are categorically more brittle to feature-constrained adversarial evasion than orthogonal tree ensembles (XGBoost), suffering 100.00\% ASR under the same operational constraints that XGBoost resists with a 43.00\% margin.}
 
@@ -598,7 +598,7 @@ This divergence is further clarified by examining epsilon sensitivity (Figure~\r
   \label{fig:perclass_arch}
 \end{figure*}
 
-As shown in Figure~\ref{fig:crossepsilon} and Figure~\ref{fig:confdeg}, the MLP lacks the piecewise-constant protective thresholds of tree models. Its continuous activation manifolds allow the GA to make steady progress along smooth loss gradients. This drives classification confidence below the decision threshold at budgets as low as $\varepsilon \approx 2.50$. In contrast, XGBoost maintains decision confidence until the perturbation budget crosses the primary split threshold.
+Figure~\ref{fig:crossepsilon} and Figure~\ref{fig:confdeg} together confirm that the MLP lacks the piecewise-constant protective structure of tree models. Its continuous activation manifolds provide the GA with consistent gradient-aligned feedback, enabling steady confidence suppression. Classification probability falls below the decision threshold at perturbation budgets as low as $\varepsilon \approx 2.50$. XGBoost, by contrast, retains high decision confidence until perturbations reach the primary root split boundary at $\varepsilon \approx 4.69$.
 
 % ─────────────────────────────────────────────────────────────
 \section{Phase 4: Adversarial Training Defense and Evaluation}
@@ -648,7 +648,7 @@ To establish the trade-off between robustness and clean utility, we conduct an a
   \label{fig:tradeoff}
 \end{figure}
 
-As shown in Figure~\ref{fig:tradeoff}, clean accuracy remains remarkably stable across all augmentation rates, fluctuating by under 0.01\% (99.28\% to 99.29\%). Over the same range, ASR drops sharply from 12.00\% at $r=0\%$ to 2.00\% at $r=20\%$. Beyond 20\%, robustness plateaus, and at $r=50\%$ ASR exhibits minor regression (3.00\%) due to boundary over-regularization. We therefore select \textbf{20\% augmentation} as the empirical Pareto-optimal configuration.
+Figure~\ref{fig:tradeoff} shows that clean accuracy remains stable across all augmentation rates, fluctuating by under 0.01\% (99.28\% to 99.29\%). Over the same range, ASR drops from 12.00\% at $r=0\%$ to 2.00\% at $r=20\%$. Beyond 20\%, robustness gain plateaus, and at $r=50\%$ ASR exhibits marginal regression (3.00\%) due to boundary over-regularization. We therefore select \textbf{20\% augmentation} as the empirical Pareto-optimal configuration.
 
 \subsection{Defensive Performance Against Adaptive White-Box Attacks}
 To evaluate defensive resilience under rigorous conditions, we subject the defended models to fresh, adaptive white-box GA attacks generated specifically against the retrained models ($N=300$ attack flows, $N=300$ benign flows, $\varepsilon = 5.0$). Table~\ref{tab:phase4_defense} and Figure~\ref{fig:defensecore} report the comparative results.
@@ -726,7 +726,7 @@ Figure~\ref{fig:transfer} presents the complete cross-architecture defense trans
 \label{sec:phase5}
 % ─────────────────────────────────────────────────────────────
 
-To gain deeper theoretical insight into why Gaussian Subspace Smoothing succeeds, Phase 5 provides advanced manifold visualization, Pareto frontier modeling, and feature importance drift analysis.
+Phase 5 provides three complementary analyses to characterize the structural mechanisms underlying Gaussian Subspace Smoothing: t-SNE manifold visualization of adversarial migration trajectories, Pareto frontier modeling of robustness-utility trade-offs, and feature importance drift quantification across baseline and defended model configurations.
 
 \subsection{t-SNE Manifold Topology of Adversarial Feature Space}
 Figure~\ref{fig:tsne} presents a t-Distributed Stochastic Neighbor Embedding (t-SNE) visualization of $N=1,400$ total flow instances: 200 clean benign flows (green), 600 clean malicious flows (blue), and 600 GA-generated adversarial flows (red). Feature dimensions were pre-conditioned via Principal Component Analysis (PCA) to 20 components prior to t-SNE projection.
@@ -865,7 +865,7 @@ Prior defense implementations consistently incurred utility trade-offs: they deg
 We acknowledge several operational constraints:
 \begin{itemize}
     \item \textbf{Feature Space vs. Problem Space Execution:} While our attack restricts perturbations to semantically verified continuous flow features, it operates on pre-extracted statistical summaries rather than injecting raw packet bytes into live Ethernet interfaces. Minor discrepancies may arise when translating continuous statistical targets into discrete packet padding.
-    \item \textbf{Static Benchmark Scope:} Evaluations were conducted on the CIC-IoT2023 corpus. While CIC-IoT2023 provides modern, high-fidelity traffic across 105 devices, validation across multi-enterprise enterprise benchmarks (e.g., CIC-IDS2018, UNSW-NB15) will provide further confirmation of generalizability.
+    \item \textbf{Static Benchmark Scope:} Evaluations were conducted on the CIC-IoT2023 corpus. While CIC-IoT2023 provides modern, high-fidelity traffic across 105 devices, validation across additional multi-domain benchmarks (e.g., CIC-IDS2018, UNSW-NB15) will provide further confirmation of generalizability.
     \item \textbf{Offline Training Assumptions:} Our defense assumes periodic batch retraining. In streaming production networks subject to zero-day concept drift, online adaptive retraining mechanisms will be necessary.
 \end{itemize}
 
@@ -884,7 +884,7 @@ Our findings lead to several clear conclusions:
     \item Adversarial training augmented with Gaussian Subspace Smoothing (GSS) resolves the historical conflict between robustness and utility in tree ensembles: it cuts XGBoost evasion from 41.67\% to 1.33\% while maintaining 99.33\% clean detection recall.
 \end{enumerate}
 
-Looking forward, we see four promising directions: testing packet-level perturbations directly in live hardware testbeds via DPDK, developing dynamic thresholding against streaming concept drift, exploring robustness in federated IoT deployments, and establishing certified robustness guarantees for tree ensembles through inference-time subspace smoothing.
+Four directions merit further investigation: (i) validating packet-level perturbation generation in live hardware testbeds through DPDK-based flow injection; (ii) extending Gaussian Subspace Smoothing to online adaptive retraining pipelines capable of tracking non-stationary attack distributions; (iii) characterizing robustness trade-offs in federated IoT deployments where individual nodes hold private local traffic corpora; and (iv) deriving certified $\ell_2$ robustness bounds for tree ensembles through inference-time subspace smoothing analogous to Cohen et al.'s guarantees for neural classifiers.
 
 % ─────────────────────────────────────────────────────────────
 \section*{CRediT Authorship Contribution Statement}
